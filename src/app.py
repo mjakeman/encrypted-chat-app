@@ -8,7 +8,8 @@ import traceback
 from PyQt5.QtCore import QTimer, QThread, QObject, pyqtSignal
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QGroupBox,
-                             QMessageBox, QListView, QDialog, QDialogButtonBox, QStackedWidget, QGridLayout)
+                             QMessageBox, QListView, QDialog, QDialogButtonBox, QStackedWidget, QGridLayout,
+                             QScrollArea)
 
 from client import Client
 from message import MessageType, RoomCreateMessage, ListRoomsMessage, ListClientsMessage
@@ -96,6 +97,10 @@ class RoomView(QWidget):
 
     chat_window = None
 
+    participants = None
+    chat_vbox = None
+    message_entry = None
+
     def __init__(self, parent, client_id, client_thread, room_id, title):
         super(RoomView, self).__init__()
 
@@ -110,8 +115,39 @@ class RoomView(QWidget):
         self.construct_ui()
 
     def construct_ui(self):
+        # (0,0) Label
         grid = QGridLayout()
         grid.addWidget(QLabel(self.title), 0, 0)
+
+        # (1,0) Chat Messages
+        self.chat_vbox = QVBoxLayout()
+        scroll_area = QScrollArea()
+        scroll_area.setLayout(self.chat_vbox)
+        grid.addWidget(scroll_area, 1, 0)
+
+        # (2,0) Entry and Send Buttons
+        hbox = QHBoxLayout()
+        self.message_entry = QLineEdit()
+        hbox.addWidget(self.message_entry)
+
+        send_message_btn = QPushButton("Send")
+        hbox.addWidget(send_message_btn)
+
+        send_image_btn = QPushButton("Attach")
+        hbox.addWidget(send_image_btn)
+
+        grid.addLayout(hbox, 2, 0)
+
+        # (0,1) Label
+        grid.addWidget(QLabel("Members"), 0, 1)
+
+        # (1,1) Room Members
+        self.participants = QListView()
+        grid.addWidget(self.participants, 1, 1)
+
+        # (2,1) Invite Button
+        invite_btn = QPushButton("Invite")
+        grid.addWidget(invite_btn, 2, 1)
 
         self.setLayout(grid)
 
@@ -219,11 +255,14 @@ class MainView(QWidget):
             self.client_thread.queue_message(new_msg)
 
     def show_room(self):
-        index = self.rooms_list.currentIndex()
-        item = self.rooms_model.itemFromIndex(index)
+        try:
+            index = self.rooms_list.currentIndex()
+            item = self.rooms_model.itemFromIndex(index)
 
-        room_id = item.data()
-        self.chat_window.show_room(room_id)
+            room_id = item.data()
+            self.chat_window.show_room(room_id)
+        except:
+            pass
 
 
 class ChatWindow(QWidget):
