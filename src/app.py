@@ -5,9 +5,10 @@
 import sys
 import traceback
 
-from PyQt5.QtCore import QTimer, QThread, QObject
+from PyQt5.QtCore import QTimer, QThread, QObject, pyqtSignal
+from PyQt5.QtGui import QStandardItemModel
 from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QGroupBox,
-                             QMessageBox)
+                             QMessageBox, QListView)
 
 from client import Client
 from message import MessageType
@@ -16,6 +17,8 @@ from message import MessageType
 class ClientThread(QThread):
     client = None
 
+    discovered_client = pyqtSignal(str)
+
     def __init__(self, client):
         super().__init__()
         self.client = client
@@ -23,6 +26,7 @@ class ClientThread(QThread):
     def dispatch(self, server_socket, message):
         if message.message_type is MessageType.CLIENT_DATA:
             print(f"Discovered client: {message.nickname}")
+            self.discovered_client(message.nickname)
             return
 
         print(f"Unsupported message: {message.message_type}")
@@ -34,20 +38,69 @@ class ClientThread(QThread):
 class ChatWindow(QWidget):
     client_thread = None
 
+    users_model = None
+    rooms_model = None
+
     def __init__(self, address, port, nickname):
         super().__init__()
+
+        # Create Models
+        self.users_model = QStandardItemModel()
+        self.rooms_model = QStandardItemModel()
 
         # Setup Client
         client = Client(address, port, nickname)
         self.client_thread = ClientThread(client)
+
+        # Connect signals
+        self.client_thread.discovered_client.connect(self.on_discover_client)
+
         self.client_thread.start()
 
         self.construct_ui()
 
+    def on_discover_client(self):
+        pass
+
     def construct_ui(self):
         vbox = QVBoxLayout()
+        hbox = QHBoxLayout()
+        vbox.addLayout(hbox)
 
-        btn = QPushButton("Hi")
+        # Create Users Section
+        users_group = QGroupBox("Users")
+        users_vbox = QVBoxLayout()
+
+        # List of currently logged-in users
+        users_list = QListView()
+        users_list.setModel(self.users_model)
+        users_vbox.addWidget(users_list)
+
+        # Chat button for users
+        users_chat_btn = QPushButton("Chat")
+        users_vbox.addWidget(users_chat_btn)
+
+        users_group.setLayout(users_vbox)
+        hbox.addWidget(users_group)
+
+        # Create Rooms Section
+        rooms_group = QGroupBox("Rooms")
+        rooms_vbox = QVBoxLayout()
+
+        # List of rooms
+        rooms_list = QListView()
+        rooms_list.setModel(self.rooms_model)
+        rooms_vbox.addWidget(rooms_list)
+
+        # Chat button for rooms
+        rooms_chat_btn = QPushButton("Join")
+        rooms_vbox.addWidget(rooms_chat_btn)
+
+        rooms_group.setLayout(rooms_vbox)
+        hbox.addWidget(rooms_group)
+
+        # Add Quit Button
+        btn = QPushButton("Quit")
         vbox.addWidget(btn)
 
         self.setLayout(vbox)
