@@ -4,6 +4,8 @@
 
 from socket import *
 
+from message import NicknameMessage
+
 # Target src properties
 server_name = 'localhost'
 server_port = 12000
@@ -14,7 +16,8 @@ client_socket.connect((server_name, server_port))
 
 print('Connection established to src {}: {}'.format(server_name, server_port))
 
-client_socket.send(b"Hello")
+nick_message = NicknameMessage("Matthew")
+client_socket.send(nick_message.__str__().encode())
 
 # Cleanup
 client_socket.close()
