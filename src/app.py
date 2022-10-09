@@ -1,7 +1,7 @@
 # Qt GUI
 # Name: Matthew Jakeman
 # UPI: mjak923
-
+import queue
 import sys
 import traceback
 
@@ -11,17 +11,21 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QVBoxLayout, QLab
                              QMessageBox, QListView, QDialog, QDialogButtonBox)
 
 from client import Client
-from message import MessageType
+from message import MessageType, RoomCreateMessage, ListRoomsMessage
 
 
 class ClientThread(QThread):
     client = None
+    queue = None
 
     discovered_client = pyqtSignal(str)
+    discovered_room = pyqtSignal(int, str)
+    created_room = pyqtSignal(int)
 
     def __init__(self, client):
         super().__init__()
         self.client = client
+        self.queue = queue.Queue()
 
     def dispatch(self, server_socket, message):
         if message.message_type is MessageType.CLIENT_DISCOVERY:
@@ -29,11 +33,30 @@ class ClientThread(QThread):
             self.discovered_client.emit(message.nickname)
             return
 
+        if message.message_type is MessageType.ROOM_DISCOVERY:
+            print(f"Discovered room: {message.title}")
+            self.discovered_room.emit(message.room_id, message.title)
+            return
+
+        if message.message_type is MessageType.ACKNOWLEDGE_ROOM_CREATE:
+            print(f"Ack'd room creation: {message.room_id}")
+            self.created_room.emit(message.room_id)
+            return
+
         print(f"Unsupported message: {message.message_type}")
 
     def run(self):
         while True:
+            # Poll for incoming messages
             self.client.poll(self.dispatch)
+
+            # Send all queued messages
+            while not self.queue.empty():
+                message = self.queue.get()
+                self.client.send_message(message)
+
+    def queue_message(self, message):
+        self.queue.put(message)
 
 
 class CreateRoomDialog(QDialog):
@@ -85,6 +108,8 @@ class ChatWindow(QWidget):
 
         # Connect signals
         self.client_thread.discovered_client.connect(self.on_discover_client)
+        self.client_thread.discovered_room.connect(self.on_discover_room)
+        self.client_thread.created_room.connect(self.on_create_room)
 
         self.client_thread.start()
 
@@ -94,6 +119,17 @@ class ChatWindow(QWidget):
         row = QStandardItem(nickname)
         self.users_model.appendRow(row)
         pass
+
+    def on_discover_room(self, room_id, room_title):
+        row = QStandardItem(room_title)
+        self.rooms_model.appendRow(row)
+        pass
+
+    def on_create_room(self, room_id):
+        # TODO: Open created room immediately
+        self.rooms_model.clear()
+        new_msg = ListRoomsMessage()
+        self.client_thread.queue_message(new_msg)
 
     def construct_ui(self):
         vbox = QVBoxLayout()
@@ -146,8 +182,11 @@ class ChatWindow(QWidget):
     def show_create_room_dialog(self):
         dlg = CreateRoomDialog(self)
         dlg.setModal(True)
+
+        # On success
         if dlg.exec():
-            print(f"Create room: {dlg.title_text()}")
+            new_msg = RoomCreateMessage(self.client_id, dlg.title_text())
+            self.client_thread.queue_message(new_msg)
 
 
 class ConnectionWindow(QWidget):

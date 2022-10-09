@@ -39,6 +39,9 @@ class Client:
         except BlockingIOError:
             pass
 
+    def send_message(self, message):
+        send_message(self.server_socket, message)
+
     def __del__(self):
         # Cleanup
         self.server_socket.close()

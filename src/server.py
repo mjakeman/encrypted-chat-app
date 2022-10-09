@@ -85,8 +85,8 @@ class Server:
 
         if message.message_type is MessageType.LIST_ROOMS:
             for room in self.server_rooms:
-                if client_data.client_id in room.authorized_clients:
-                    new_msg = RoomDiscoveryMessage(room.title)
+                if client_data.client_id is room.host_id or client_data.client_id in room.authorized_clients:
+                    new_msg = RoomDiscoveryMessage(room.room_id, room.title)
                     send_message(client_socket, new_msg)
             return
 
@@ -95,7 +95,7 @@ class Server:
                 print("Not authorised to create room")
                 return
 
-            new_room = Room(self.next_room_id, message.host_id, message.title)
+            new_room = Room(self.next_room_id, message.title, message.host_id)
             self.server_rooms.append(new_room)
 
             self.next_room_id += 1

@@ -80,8 +80,10 @@ def parse_message_contents(message_type, byte_data):
     elif message_type == MessageType.LIST_ROOMS:
         return ListRoomsMessage()
     elif message_type == MessageType.ROOM_DISCOVERY:
-        room_id = int(byte_data.decode())
-        return RoomDiscoveryMessage(room_id)
+        tokens = byte_data.decode().split(',')
+        room_id = int(tokens[0])
+        title = tokens[1]
+        return RoomDiscoveryMessage(room_id, title)
     elif message_type == MessageType.ROOM_CREATE:
         tokens = byte_data.decode().split(',')
         host_id = int(tokens[0])
@@ -162,13 +164,15 @@ class ListRoomsMessage(Message):
 
 class RoomDiscoveryMessage(Message):
     room_id = None
+    title = None
 
-    def __init__(self, room_id):
+    def __init__(self, room_id, room_title):
         super(RoomDiscoveryMessage, self).__init__(MessageType.ROOM_DISCOVERY)
         self.room_id = room_id
+        self.title = room_title
 
     def __str__(self):
-        return str(self.room_id)
+        return ','.join([str(self.room_id), str(self.title)])
 
 
 class RoomCreateMessage(Message):
