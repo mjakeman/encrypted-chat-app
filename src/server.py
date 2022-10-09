@@ -15,6 +15,7 @@ import config
 class ClientData:
     client_nick = None
     client_id = None
+    user_room_map = {}
 
     def __init__(self, client_id):
         self.client_id = client_id
@@ -72,6 +73,21 @@ class Server:
     def get_client_data(self, client_socket):
         return self.connected_clients[client_socket]
 
+    def get_client_data_for_id(self, client_id):
+        for client in self.connected_clients:
+            if self.connected_clients[client].client_id is client_id:
+                return self.connected_clients[client]
+
+        return None
+
+    def create_room(self, title, host_id):
+        new_room = Room(self.next_room_id, title, host_id)
+        self.server_rooms.append(new_room)
+
+        self.next_room_id += 1
+
+        return new_room
+
     def dispatch_message(self, client_socket, message):
         client_data = self.get_client_data(client_socket)
 
@@ -95,11 +111,7 @@ class Server:
                 print("Not authorised to create room")
                 return
 
-            new_room = Room(self.next_room_id, message.title, message.host_id)
-            self.server_rooms.append(new_room)
-
-            self.next_room_id += 1
-
+            new_room = self.create_room(message.title, message.host_id)
             new_msg = AcknowledgeRoomCreateMessage(new_room.room_id)
             send_message(client_socket, new_msg)
             return
@@ -112,7 +124,22 @@ class Server:
                     # TODO: Notify
             return
 
+        if message.message_type is MessageType.INITIATE_USER_CHAT:
+            other_user_data = self.get_client_data_for_id(message.user_id)
 
+            if client_data.user_room_map.get(message.user_id) is None:
+                new_room = self.create_room("Direct Chat", -1)
+                room_id = new_room.room_id
+
+                # Set room in user room maps
+                client_data.user_room_map[message.user_id] = room_id
+                other_user_data.user_room_map[client_data.client_id] = room_id
+            else:
+                room_id = client_data.user_room_map[message.user_id]
+
+            new_msg = AcknowledgeUserChat(room_id, other_user_data.client_id, other_user_data.client_nick)
+            send_message(client_socket, new_msg)
+            return
 
         print(f"Unsupported message: {message.message_type.name}")
 

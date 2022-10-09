@@ -32,6 +32,8 @@ class MessageType(IntEnum):
     ROOM_CREATE = 7,
     ACKNOWLEDGE_ROOM_CREATE = 8,
     ROOM_INVITE = 9,
+    INITIATE_USER_CHAT = 10,
+    ACKNOWLEDGE_USER_CHAT = 11,
 
 
 def build_message_header(length, msg_type):
@@ -92,6 +94,15 @@ def parse_message_contents(message_type, byte_data):
     elif message_type == MessageType.ACKNOWLEDGE_ROOM_CREATE:
         room_id = int(byte_data.decode())
         return AcknowledgeRoomCreateMessage(room_id)
+    elif message_type == MessageType.INITIATE_USER_CHAT:
+        user_id = int(byte_data.decode())
+        return InitiateUserChat(user_id)
+    elif message_type == MessageType.ACKNOWLEDGE_USER_CHAT:
+        tokens = byte_data.decode().split(',')
+        room_id = int(tokens[0])
+        user_id = int(tokens[1])
+        user_nick = tokens[2]
+        return AcknowledgeUserChat(room_id, user_id, user_nick)
 
 
 def parse_message(byte_data):
@@ -210,3 +221,29 @@ class RoomInviteMessage(Message):
 
     def __str__(self):
         return ','.join([str(self.room_id), str(self.client_id)])
+
+
+class InitiateUserChat(Message):
+    user_id = None
+
+    def __init__(self, user_id):
+        super(InitiateUserChat, self).__init__(MessageType.INITIATE_USER_CHAT)
+        self.user_id = user_id
+
+    def __str__(self):
+        return str(self.user_id)
+
+
+class AcknowledgeUserChat(Message):
+    room_id = None
+    user_id = None
+    user_nick = None
+
+    def __init__(self, room_id, user_id, user_nick):
+        super(AcknowledgeUserChat, self).__init__(MessageType.ACKNOWLEDGE_USER_CHAT)
+        self.room_id = room_id
+        self.user_id = user_id
+        self.user_nick = user_nick
+
+    def __str__(self):
+        return ','.join([str(self.room_id), str(self.user_id), str(self.user_nick)])
