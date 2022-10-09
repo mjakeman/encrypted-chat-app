@@ -1,11 +1,11 @@
-# SE364 A2 Message
+# Message Protocol
 # Name: Matthew Jakeman
 # UPI: mjak923
 
-from enum import Enum, IntEnum
+from enum import IntEnum
 
 SEPERATOR_TOKEN = ':'
-
+MESSAGE_HEADER_SIZE = 4
 
 # Message Protocol:
 #
@@ -19,6 +19,7 @@ SEPERATOR_TOKEN = ':'
 #
 # The content encoding depends on the message and will have
 # a length of exactly 'length' bits.
+
 
 class MessageType(IntEnum):
     NICKNAME = 1
@@ -68,6 +69,7 @@ def parse_message_contents(message_type, byte_data):
 def parse_message(byte_data):
     (_, msg_type) = parse_message_header(byte_data[0:4])
     return parse_message_contents(msg_type, byte_data[4:])
+
 
 class Message:
     message_type = None

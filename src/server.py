@@ -4,8 +4,10 @@
 
 from socket import *
 from threading import Thread
+from traceback import print_exception
 
-from message import parse_message, Message, MessageType, NicknameMessage, ListClientsMessage
+from message import Message, NicknameMessage, ListClientsMessage, ClientDataMessage
+from socket_utils import wait_message, send_message
 
 # Server properties
 server_host = ''
@@ -35,21 +37,22 @@ def broadcast(message):
 
     print(f"BROADCAST: {message.__str__()}")
     for client in connected_clients:
-        client.send(message.__str__().encode())
+        send_message(client, message)
 
 
 def get_client_data(client_socket):
     return connected_clients[client_socket]
 
 
-def dispatch_message(client_socket, raw_message_data):
-    message = parse_message(raw_message_data)
+def dispatch_message(client_socket, message):
 
     if message is ListClientsMessage:
         for other_client in connected_clients:
             if other_client is not client_socket:
                 client_data = get_client_data(other_client)
-                client_socket.send(client_data.client_nick.encode())
+
+                new_msg = ClientDataMessage(client_data.client_nick)
+                send_message(client_socket, new_msg)
         pass
 
     error(f"Unsupported message: {message.message_type}")
@@ -71,9 +74,14 @@ def client_listener(client_socket):
     while True:
         # Continually receive from client until termination
         try:
-            data = client_socket.recv(1024)
-            dispatch_message(client_socket, data.decode())
-        except:
+            msg = wait_message(client_socket)
+            if msg is None:
+                terminate_client(client_socket)
+                return
+
+            dispatch_message(client_socket, msg)
+        except Exception as e:
+            print_exception(e)
             terminate_client(client_socket)
             return
 
@@ -84,13 +92,12 @@ def register_client(client_socket):
     print(f"STATUS: Incoming connection from {socket_id}")
 
     # Get nickname from client
-    data = client_socket.recv(1024).decode()
-    nick_message = parse_message(data)
+    nick_message = wait_message(client_socket)
 
-    if nick_message is not NicknameMessage:
+    if not isinstance(nick_message, NicknameMessage):
         error("ERROR: Client socket did not provide nickname - quitting")
         client_socket.close()
-        pass
+        return
 
     # Add client connection to list
     client_data = ClientData(socket_id, nick_message.nickname)
