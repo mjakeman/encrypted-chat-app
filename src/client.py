@@ -1,43 +1,57 @@
 # SE364 A2 Client
 # Name: Matthew Jakeman
 # UPI: mjak923
-
+import sys
 from socket import *
 
 from message import parse_message, NicknameMessage, ListClientsMessage, ClientDataMessage
 from socket_utils import send_message, wait_message
 
+
+class Client:
+    server_socket = None
+
+    def __init__(self, address, port, nickname):
+        # Set up client socket connection
+        self.server_socket = socket(AF_INET, SOCK_STREAM)
+        self.server_socket.connect((address, port))
+
+        print('Connection established to src {}: {}'.format(address, port))
+
+        nick_message = NicknameMessage(nickname)
+        send_message(self.server_socket, nick_message)
+
+    def dispatch_message(self, message):
+
+        if message is ClientDataMessage:
+            print(f"Discovered client: {message.nickname}")
+            pass
+
+        print(f"Unsupported message: {message.message_type}")
+
+    def run(self):
+
+        list_clients_message = ListClientsMessage()
+        send_message(self.server_socket, list_clients_message)
+
+        try:
+            while True:
+                msg = wait_message(self.server_socket)
+                self.dispatch_message(msg)
+
+        finally:
+            # Cleanup
+            self.server_socket.close()
+
+
 # Target src properties
 server_name = 'localhost'
 server_port = 12000
 
+nickname = 'Default'
 
-def dispatch_message(server_socket, message):
+if len(sys.argv) > 1:
+    nickname = sys.argv[1]
 
-    if message is ClientDataMessage:
-        print(f"Discovered client: {message.nickname}")
-        pass
-
-    print(f"Unsupported message: {message.message_type}")
-
-
-# Set up client socket connection
-client_socket = socket(AF_INET, SOCK_STREAM)
-client_socket.connect((server_name, server_port))
-
-print('Connection established to src {}: {}'.format(server_name, server_port))
-
-nick_message = NicknameMessage("Matthew")
-send_message(client_socket, nick_message)
-
-list_clients_message = ListClientsMessage()
-send_message(client_socket, list_clients_message)
-
-try:
-    while True:
-        msg = wait_message(client_socket)
-        dispatch_message(client_socket, msg)
-
-finally:
-    # Cleanup
-    client_socket.close()
+client = Client(server_name, server_port, nickname)
+client.run()
