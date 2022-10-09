@@ -20,7 +20,7 @@ class ClientThread(QThread):
         super().__init__()
         self.client = client
 
-    def default_dispatch(self, server_socket, message):
+    def dispatch(self, server_socket, message):
         if message.message_type is MessageType.CLIENT_DATA:
             print(f"Discovered client: {message.nickname}")
             return
@@ -28,7 +28,7 @@ class ClientThread(QThread):
         print(f"Unsupported message: {message.message_type}")
 
     def run(self):
-        self.client.poll(self.default_dispatch)
+        self.client.poll(self.dispatch)
 
 
 class ChatWindow(QWidget):
@@ -131,6 +131,27 @@ class ConnectionWindow(QWidget):
                                     QMessageBox.Ok, QMessageBox.Ok)
 
 
-app = QApplication(sys.argv)
-window = ConnectionWindow()
-sys.exit(app.exec_())
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+
+    window = None
+
+    if len(sys.argv) == 4:
+        try:
+            address = sys.argv[1]
+            port = int(sys.argv[2])
+            nickname = sys.argv[3]
+
+            window = ChatWindow(address, port, nickname)
+            window.show()
+        except Exception as e:
+            traceback.print_exception(e)
+            print("Could not connect to server specified by command line arguments.")
+
+            window = ConnectionWindow()
+            window.show()
+    else:
+        window = ConnectionWindow()
+        window.show()
+
+    sys.exit(app.exec_())
