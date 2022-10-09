@@ -5,28 +5,32 @@ import sys
 from socket import *
 
 import config
-from message import MessageType, NicknameMessage, ListClientsMessage, ClientDataMessage
+from message import MessageType, NicknameMessage, ListClientsMessage, ClientDiscoveryMessage
 from socket_utils import send_message, recv_message
 
 
 class Client:
     server_socket = None
+    client_id = -1
 
     def __init__(self, address, port, nickname):
         # Set up client socket connection
         self.server_socket = socket(AF_INET, SOCK_STREAM)
         self.server_socket.connect((address, port))
 
-        # Make socket non-blocking
-        self.server_socket.setblocking(False)
-
         print('Connection established to src {}: {}'.format(address, port))
 
         nick_message = NicknameMessage(nickname)
         send_message(self.server_socket, nick_message)
 
+        ack_message = recv_message(self.server_socket)
+        self.client_id = ack_message.client_id
+
         list_clients_message = ListClientsMessage()
         send_message(self.server_socket, list_clients_message)
+
+        # Make socket non-blocking
+        self.server_socket.setblocking(False)
 
     def poll(self, dispatch_func):
         try:
@@ -41,7 +45,7 @@ class Client:
 
 
 def default_dispatch(server_socket, message):
-    if message.message_type is MessageType.CLIENT_DATA:
+    if message.message_type is MessageType.CLIENT_DISCOVERY:
         print(f"Discovered client: {message.nickname}")
         return
 

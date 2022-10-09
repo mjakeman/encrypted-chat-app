@@ -7,6 +7,7 @@ from enum import IntEnum
 SEPERATOR_TOKEN = ':'
 MESSAGE_HEADER_SIZE = 4
 
+
 # Message Protocol:
 #
 # This message system uses a custom 'on the wire' protocol:
@@ -22,9 +23,10 @@ MESSAGE_HEADER_SIZE = 4
 
 
 class MessageType(IntEnum):
-    NICKNAME = 1
-    LIST_CLIENTS = 2,
-    CLIENT_DATA = 3
+    NICKNAME = 1,
+    ACKNOWLEDGE_CLIENT = 2,
+    LIST_CLIENTS = 3,
+    CLIENT_DISCOVERY = 4
 
 
 def build_message_header(length, msg_type):
@@ -60,10 +62,12 @@ def message_to_wire(message):
 def parse_message_contents(message_type, byte_data):
     if message_type == MessageType.NICKNAME:
         return NicknameMessage(byte_data.decode())
+    elif message_type == MessageType.ACKNOWLEDGE_CLIENT:
+        return AcknowledgeClientMessage(byte_data.decode())
     elif message_type == MessageType.LIST_CLIENTS:
         return ListClientsMessage()
-    elif message_type == MessageType.CLIENT_DATA:
-        return ClientDataMessage(byte_data.decode())
+    elif message_type == MessageType.CLIENT_DISCOVERY:
+        return ClientDiscoveryMessage(byte_data.decode())
 
 
 def parse_message(byte_data):
@@ -93,6 +97,18 @@ class NicknameMessage(Message):
         return self.nickname
 
 
+class AcknowledgeClientMessage(Message):
+    client_id = None
+
+    def __init__(self, contents):
+        super(AcknowledgeClientMessage, self).__init__(MessageType.ACKNOWLEDGE_CLIENT)
+
+        self.client_id = int(contents)
+
+    def __str__(self):
+        return str(self.client_id)
+
+
 class ListClientsMessage(Message):
     def __init__(self):
         super(ListClientsMessage, self).__init__(MessageType.LIST_CLIENTS)
@@ -101,11 +117,11 @@ class ListClientsMessage(Message):
         return None
 
 
-class ClientDataMessage(Message):
+class ClientDiscoveryMessage(Message):
     nickname = None
 
     def __init__(self, content):
-        super(ClientDataMessage, self).__init__(MessageType.CLIENT_DATA)
+        super(ClientDiscoveryMessage, self).__init__(MessageType.CLIENT_DISCOVERY)
         self.nickname = content
 
     def __str__(self):

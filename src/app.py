@@ -24,7 +24,7 @@ class ClientThread(QThread):
         self.client = client
 
     def dispatch(self, server_socket, message):
-        if message.message_type is MessageType.CLIENT_DATA:
+        if message.message_type is MessageType.CLIENT_DISCOVERY:
             print(f"Discovered client: {message.nickname}")
             self.discovered_client.emit(message.nickname)
             return
@@ -32,11 +32,13 @@ class ClientThread(QThread):
         print(f"Unsupported message: {message.message_type}")
 
     def run(self):
-        self.client.poll(self.dispatch)
+        while True:
+            self.client.poll(self.dispatch)
 
 
 class ChatWindow(QWidget):
     client_thread = None
+    client_id = -1
 
     users_model = None
     rooms_model = None
@@ -50,6 +52,7 @@ class ChatWindow(QWidget):
 
         # Setup Client
         client = Client(address, port, nickname)
+        self.client_id = client.client_id
         self.client_thread = ClientThread(client)
 
         # Connect signals
@@ -60,6 +63,7 @@ class ChatWindow(QWidget):
         self.construct_ui()
 
     def on_discover_client(self, nickname):
+
         row = QStandardItem(nickname)
         self.users_model.appendRow(row)
         pass

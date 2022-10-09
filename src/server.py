@@ -6,23 +6,26 @@ from socket import *
 from threading import Thread
 from traceback import print_exception
 
-from message import Message, NicknameMessage, ListClientsMessage, ClientDataMessage, MessageType
+from message import Message, NicknameMessage, ListClientsMessage, ClientDiscoveryMessage, MessageType, \
+    AcknowledgeClientMessage
 from socket_utils import recv_message, send_message
 
 import config
+
 
 class ClientData:
     client_nick = None
     client_id = None
 
-    def __init__(self, client_id, client_nick):
-        self.client_nick = client_nick
+    def __init__(self, client_id):
         self.client_id = client_id
 
 
 class Server:
     connected_clients = {}
     server_socket = None
+
+    next_id = 0
 
     def __init__(self, host, port):
         # Start up src and listen
@@ -44,9 +47,7 @@ class Server:
             self.server_socket.close()
 
     def broadcast(self, message):
-        assert message is Message
-
-        print(f"BROADCAST: {message.__str__()}")
+        print(f"BROADCAST: {message.message_type.name}: {message.__str__()}")
         for client in self.connected_clients:
             send_message(client, message)
 
@@ -55,12 +56,11 @@ class Server:
 
     def dispatch_message(self, client_socket, message):
         if message.message_type is MessageType.LIST_CLIENTS:
-            for other_client in self.connected_clients:
-                if other_client is not client_socket:
-                    client_data = self.get_client_data(other_client)
+            for client in self.connected_clients:
+                client_data = self.get_client_data(client)
 
-                    new_msg = ClientDataMessage(client_data.client_nick)
-                    send_message(client_socket, new_msg)
+                new_msg = ClientDiscoveryMessage(client_data.client_nick)
+                send_message(client_socket, new_msg)
             return
 
         print(f"Unsupported message: {message.message_type.name}")
@@ -104,8 +104,23 @@ class Server:
             client_socket.close()
             return
 
+        # TODO: Ensure nickname is unique
+
+        # Create new client id
+        client_data = ClientData(self.next_id)
+        self.next_id += 1
+
+        client_data.client_nick = nick_message.nickname
+
+        # Acknowledge client and assign id
+        ack_message = AcknowledgeClientMessage(client_data.client_id)
+        send_message(client_socket, ack_message)
+
+        # Broadcast client discovery message
+        # This must be done before adding the current client to the connection list
+        self.broadcast(ClientDiscoveryMessage(client_data.client_nick))
+
         # Add client connection to list
-        client_data = ClientData(socket_id, nick_message.nickname)
         self.connected_clients[client_socket] = client_data
         print(f"STATUS: {client_data.client_nick} connected to the server")
 

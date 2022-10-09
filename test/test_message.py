@@ -31,7 +31,7 @@ class MessageTest(TestCase):
         self.assertEqual(message.message_type, cmp_message.message_type)
 
     def test_client_data_round_trip(self):
-        message = ClientDataMessage("Some data")
+        message = ClientDiscoveryMessage("Some data")
         byte_data = message_to_wire(message)
 
         cmp_message = parse_message(byte_data)
