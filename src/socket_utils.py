@@ -11,7 +11,7 @@ def send_message(sender_socket, msg):
     print(f"DEBUG: Sent message of type {msg.message_type.name}")
 
 
-def wait_message(listener_socket):
+def recv_message(listener_socket):
     header = listener_socket.recv(MESSAGE_HEADER_SIZE)
 
     if not header:

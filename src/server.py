@@ -7,8 +7,9 @@ from threading import Thread
 from traceback import print_exception
 
 from message import Message, NicknameMessage, ListClientsMessage, ClientDataMessage, MessageType
-from socket_utils import wait_message, send_message
+from socket_utils import recv_message, send_message
 
+import config
 
 class ClientData:
     client_nick = None
@@ -79,7 +80,7 @@ class Server:
         while True:
             # Continually receive from client until termination
             try:
-                msg = wait_message(client_socket)
+                msg = recv_message(client_socket)
                 if msg is None:
                     self.terminate_client(client_socket)
                     return
@@ -96,7 +97,7 @@ class Server:
         print(f"STATUS: Incoming connection from {socket_id}")
 
         # Get nickname from client
-        nick_message = wait_message(client_socket)
+        nick_message = recv_message(client_socket)
 
         if not isinstance(nick_message, NicknameMessage):
             error("ERROR: Client socket did not provide nickname - quitting")
@@ -114,9 +115,7 @@ class Server:
         thread.start()
 
 
-# Server properties
-server_host = ''
-server_port = 12000
-
-server = Server(server_host, server_port)
-server.run()
+if __name__ == '__main__':
+    # Server properties
+    server = Server(config.SERVER_HOST, config.SERVER_PORT)
+    server.run()
