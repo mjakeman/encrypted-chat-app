@@ -26,9 +26,6 @@ class Client:
         ack_message = recv_message(self.server_socket)
         self.client_id = ack_message.client_id
 
-        list_clients_message = ListClientsMessage()
-        send_message(self.server_socket, list_clients_message)
-
         # Make socket non-blocking
         self.server_socket.setblocking(False)
 

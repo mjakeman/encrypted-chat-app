@@ -8,10 +8,10 @@ import traceback
 from PyQt5.QtCore import QTimer, QThread, QObject, pyqtSignal
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QGroupBox,
-                             QMessageBox, QListView, QDialog, QDialogButtonBox)
+                             QMessageBox, QListView, QDialog, QDialogButtonBox, QStackedWidget, QGridLayout)
 
 from client import Client
-from message import MessageType, RoomCreateMessage, ListRoomsMessage
+from message import MessageType, RoomCreateMessage, ListRoomsMessage, ListClientsMessage
 
 
 class ClientThread(QThread):
@@ -87,31 +87,63 @@ class CreateRoomDialog(QDialog):
         return self.title.text()
 
 
-class ChatWindow(QWidget):
+class RoomView(QWidget):
+    room_id = None
+    title = None
+
+    client_id = None
+    client_thread = None
+
+    chat_window = None
+
+    def __init__(self, parent, client_id, client_thread, room_id, title):
+        super(RoomView, self).__init__()
+
+        self.room_id = room_id
+        self.title = title
+
+        self.client_id = client_id
+        self.client_thread = client_thread
+
+        self.chat_window = parent
+
+        self.construct_ui()
+
+    def construct_ui(self):
+        grid = QGridLayout()
+        grid.addWidget(QLabel(self.title), 0, 0)
+
+        self.setLayout(grid)
+
+
+class MainView(QWidget):
     client_thread = None
     client_id = -1
 
     users_model = None
-    rooms_model = None
+    users_list = None
 
-    def __init__(self, address, port, nickname):
-        super().__init__()
+    rooms_model = None
+    rooms_list = None
+
+    chat_window = None
+
+    def __init__(self, parent, client_id, client_thread):
+        super(MainView, self).__init__()
 
         # Create Models
         self.users_model = QStandardItemModel()
         self.rooms_model = QStandardItemModel()
 
-        # Setup Client
-        client = Client(address, port, nickname)
-        self.client_id = client.client_id
-        self.client_thread = ClientThread(client)
+        self.chat_window = parent
+
+        self.client_id = client_id
+        self.client_thread = client_thread
 
         # Connect signals
         self.client_thread.discovered_client.connect(self.on_discover_client)
         self.client_thread.discovered_room.connect(self.on_discover_room)
         self.client_thread.created_room.connect(self.on_create_room)
-
-        self.client_thread.start()
 
         self.construct_ui()
 
@@ -122,6 +154,7 @@ class ChatWindow(QWidget):
 
     def on_discover_room(self, room_id, room_title):
         row = QStandardItem(room_title)
+        row.setData(room_id)
         self.rooms_model.appendRow(row)
         pass
 
@@ -141,9 +174,9 @@ class ChatWindow(QWidget):
         users_vbox = QVBoxLayout()
 
         # List of currently logged-in users
-        users_list = QListView()
-        users_list.setModel(self.users_model)
-        users_vbox.addWidget(users_list)
+        self.users_list = QListView()
+        self.users_list.setModel(self.users_model)
+        users_vbox.addWidget(self.users_list)
 
         # Chat button for users
         users_chat_btn = QPushButton("Chat")
@@ -157,12 +190,13 @@ class ChatWindow(QWidget):
         rooms_vbox = QVBoxLayout()
 
         # List of rooms
-        rooms_list = QListView()
-        rooms_list.setModel(self.rooms_model)
-        rooms_vbox.addWidget(rooms_list)
+        self.rooms_list = QListView()
+        self.rooms_list.setModel(self.rooms_model)
+        rooms_vbox.addWidget(self.rooms_list)
 
         # Chat button for rooms
         rooms_chat_btn = QPushButton("Join")
+        rooms_chat_btn.clicked.connect(self.show_room)
         rooms_vbox.addWidget(rooms_chat_btn)
 
         # Create button for rooms
@@ -172,10 +206,6 @@ class ChatWindow(QWidget):
 
         rooms_group.setLayout(rooms_vbox)
         hbox.addWidget(rooms_group)
-
-        # Add Quit Button
-        btn = QPushButton("Quit")
-        vbox.addWidget(btn)
 
         self.setLayout(vbox)
 
@@ -187,6 +217,86 @@ class ChatWindow(QWidget):
         if dlg.exec():
             new_msg = RoomCreateMessage(self.client_id, dlg.title_text())
             self.client_thread.queue_message(new_msg)
+
+    def show_room(self):
+        index = self.rooms_list.currentIndex()
+        item = self.rooms_model.itemFromIndex(index)
+
+        room_id = item.data()
+        self.chat_window.show_room(room_id)
+
+
+class ChatWindow(QWidget):
+    client_thread = None
+    client_id = -1
+
+    main_view = None
+    stack = None
+
+    back_btn = None
+    quit_btn = None
+
+    def __init__(self, address, port, nickname):
+        super().__init__()
+
+        # Setup Client
+        client = Client(address, port, nickname)
+        self.client_id = client.client_id
+        self.client_thread = ClientThread(client)
+        self.client_thread.start()
+
+        self.construct_ui()
+
+        list_clients_message = ListClientsMessage()
+        list_rooms_message = ListRoomsMessage()
+        self.client_thread.queue_message(list_clients_message)
+        self.client_thread.queue_message(list_rooms_message)
+
+    def construct_ui(self):
+        vbox = QVBoxLayout()
+
+        self.main_view = self.construct_main_ui()
+
+        self.stack = QStackedWidget()
+        self.stack.addWidget(self.main_view)
+        self.stack.setCurrentWidget(self.main_view)
+        vbox.addWidget(self.stack)
+
+        hbox = QHBoxLayout()
+        vbox.addLayout(hbox)
+
+        # Add Back Button
+        self.back_btn = QPushButton("Back")
+        self.back_btn.setEnabled(False)
+        self.back_btn.clicked.connect(self.return_home)
+        hbox.addWidget(self.back_btn)
+
+        # Add Quit Button
+        self.quit_btn = QPushButton("Quit")
+        hbox.addWidget(self.quit_btn)
+
+        self.setLayout(vbox)
+
+    def construct_main_ui(self):
+        return MainView(self, self.client_id, self.client_thread)
+
+    def construct_room_ui(self, room_id, title):
+        return RoomView(self, self.client_id, self.client_thread, room_id, title)
+
+    def show_room(self, room_id):
+        room_view = self.construct_room_ui(room_id, "todo")
+        self.stack.addWidget(room_view)
+        self.stack.setCurrentWidget(room_view)
+
+        self.back_btn.setEnabled(True)
+
+    def return_home(self):
+        current = self.stack.currentWidget()
+        while current is not self.main_view:
+            self.stack.removeWidget(current)
+            current = self.stack.currentWidget()
+
+        self.back_btn.setEnabled(False)
 
 
 class ConnectionWindow(QWidget):
