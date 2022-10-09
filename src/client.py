@@ -1,4 +1,4 @@
-# TCPclient_Exercise1.py
+# SE364 A2 Client
 # Name: Matthew Jakeman
 # UPI: mjak923
 

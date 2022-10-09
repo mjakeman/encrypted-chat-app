@@ -5,6 +5,8 @@
 from socket import *
 from threading import Thread
 
+from message import parse_message, Message, MessageType, NicknameMessage, ListClientsMessage
+
 # Server properties
 server_host = ''
 server_port = 12000
@@ -18,6 +20,14 @@ print("Server started listening localhost: {}".format(server_port))
 
 connected_clients = {}
 
+class ClientData:
+    client_nick = None
+    client_id = None
+
+    def __init__(self, client_id, client_nick):
+        self.client_nick = client_nick
+        self.client_id = client_id
+
 
 def broadcast(message):
     print(f"BROADCAST: {message}")
@@ -25,14 +35,31 @@ def broadcast(message):
         client.send(message.encode())
 
 
+def get_client_data(client_socket):
+    return connected_clients[client_socket]
+
+def dispatch_message(client_socket, raw_message_data):
+    message = parse_message(raw_message_data)
+
+    if message is NicknameMessage:
+        error("ERROR: Updating nicknames is not supported at the moment")
+
+    if message is ListClientsMessage:
+        for other_client in connected_clients:
+            if other_client is not client_socket:
+                client_data = get_client_data(other_client)
+                client_socket.send(client_data.client_nick.encode())
+
+
 def terminate_client(client_socket):
     try:
         # Remove from connected clients
-        socket_id = connected_clients[client_socket]
+        client_data = connected_clients[client_socket]
         connected_clients.pop(client_socket)
 
         # Broadcast disconnection message
-        broadcast(f"Client {socket_id} disconnected")
+        broadcast(f"Client {client_data.client_nick} disconnected")
+        print(f"Client at {client_data.client_id} with nickname '{client_data.client_nick} disconnected")
     finally:
         client_socket.close()
 
@@ -50,9 +77,20 @@ def client_listener(client_socket):
 def register_client(client_socket):
     # Get unique id (server, port) for socket
     socket_id = client_socket.getpeername()
+    print(f"STATUS: Incoming connection from {socket_id}")
+
+    # Get nickname from client
+    data = client_socket.recv(1024)
+    nick_message = parse_message(data)
+
+    if nick_message is not NicknameMessage:
+        error("ERROR: Client socket did not provide nickname - quitting")
+        client_socket.close()
+        pass
 
     # Add client connection to list
-    connected_clients[client_socket] = socket_id
+    client_data = ClientData(socket_id, nick_message.nickname)
+    connected_clients[client_socket] = client_data
     broadcast(f"Client {socket_id} connected")
 
     # Dispatch new thread with listener function
