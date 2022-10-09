@@ -6,7 +6,7 @@ import sys
 import traceback
 
 from PyQt5.QtCore import QTimer, QThread, QObject, pyqtSignal
-from PyQt5.QtGui import QStandardItemModel
+from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QGroupBox,
                              QMessageBox, QListView)
 
@@ -26,7 +26,7 @@ class ClientThread(QThread):
     def dispatch(self, server_socket, message):
         if message.message_type is MessageType.CLIENT_DATA:
             print(f"Discovered client: {message.nickname}")
-            self.discovered_client(message.nickname)
+            self.discovered_client.emit(message.nickname)
             return
 
         print(f"Unsupported message: {message.message_type}")
@@ -59,7 +59,9 @@ class ChatWindow(QWidget):
 
         self.construct_ui()
 
-    def on_discover_client(self):
+    def on_discover_client(self, nickname):
+        row = QStandardItem(nickname)
+        self.users_model.appendRow(row)
         pass
 
     def construct_ui(self):
