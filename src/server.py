@@ -6,7 +6,7 @@ from socket import *
 from threading import Thread
 from traceback import print_exception
 
-from message import Message, NicknameMessage, ListClientsMessage, ClientDataMessage
+from message import Message, NicknameMessage, ListClientsMessage, ClientDataMessage, MessageType
 from socket_utils import wait_message, send_message
 
 
@@ -53,7 +53,7 @@ class Server:
         return self.connected_clients[client_socket]
 
     def dispatch_message(self, client_socket, message):
-        if message is ListClientsMessage:
+        if message.message_type is MessageType.LIST_CLIENTS:
             for other_client in self.connected_clients:
                 if other_client is not client_socket:
                     client_data = self.get_client_data(other_client)

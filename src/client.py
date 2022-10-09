@@ -4,7 +4,7 @@
 import sys
 from socket import *
 
-from message import parse_message, NicknameMessage, ListClientsMessage, ClientDataMessage
+from message import MessageType, NicknameMessage, ListClientsMessage, ClientDataMessage
 from socket_utils import send_message, wait_message
 
 
@@ -23,9 +23,9 @@ class Client:
 
     def dispatch_message(self, message):
 
-        if message is ClientDataMessage:
+        if message.message_type is MessageType.CLIENT_DATA:
             print(f"Discovered client: {message.nickname}")
-            pass
+            return
 
         print(f"Unsupported message: {message.message_type}")
 
