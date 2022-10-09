@@ -6,8 +6,7 @@ from socket import *
 from threading import Thread
 from traceback import print_exception
 
-from message import Message, NicknameMessage, ListClientsMessage, ClientDiscoveryMessage, MessageType, \
-    AcknowledgeClientMessage, RoomDiscoveryMessage
+from message import *
 from socket_utils import recv_message, send_message
 
 import config
@@ -25,8 +24,10 @@ class Room:
     authorized_clients = None
     title = None
     host_id = None
+    room_id = None
 
-    def __init__(self, title, host_id):
+    def __init__(self, room_id, title, host_id):
+        self.room_id = room_id
         self.title = title
         self.host_id = host_id
         self.authorized_clients = {host_id}
@@ -41,7 +42,8 @@ class Server:
 
     server_rooms = []
 
-    next_id = 0
+    next_user_id = 0
+    next_room_id = 0
 
     def __init__(self, host, port):
         # Start up src and listen
@@ -77,7 +79,7 @@ class Server:
             for client in self.connected_clients:
                 other_client_data = self.get_client_data(client)
 
-                new_msg = ClientDiscoveryMessage(other_client_data.client_nick)
+                new_msg = ClientDiscoveryMessage(other_client_data.client_id, other_client_data.client_nick)
                 send_message(client_socket, new_msg)
             return
 
@@ -87,6 +89,29 @@ class Server:
                     new_msg = RoomDiscoveryMessage(room.title)
                     send_message(client_socket, new_msg)
             return
+
+        if message.message_type is MessageType.ROOM_CREATE:
+            if message.host_id is not client_data.client_id:
+                print("Not authorised to create room")
+                return
+
+            new_room = Room(self.next_room_id, message.host_id, message.title)
+            self.server_rooms.append(new_room)
+
+            self.next_room_id += 1
+
+            new_msg = AcknowledgeRoomCreateMessage(new_room.room_id)
+            send_message(client_socket, new_msg)
+            return
+
+        if message.message_type is MessageType.ROOM_INVITE:
+            for room in self.server_rooms:
+                if room.room_id is message.room_id:
+                    room.invite(message.client_id)
+
+                    # TODO: Notify
+            return
+
 
 
         print(f"Unsupported message: {message.message_type.name}")
@@ -133,8 +158,8 @@ class Server:
         # TODO: Ensure nickname is unique
 
         # Create new client id
-        client_data = ClientData(self.next_id)
-        self.next_id += 1
+        client_data = ClientData(self.next_user_id)
+        self.next_user_id += 1
 
         client_data.client_nick = nick_message.nickname
 
@@ -144,7 +169,7 @@ class Server:
 
         # Broadcast client discovery message
         # This must be done before adding the current client to the connection list
-        self.broadcast(ClientDiscoveryMessage(client_data.client_nick))
+        self.broadcast(ClientDiscoveryMessage(client_data.client_id, client_data.client_nick))
 
         # Add client connection to list
         self.connected_clients[client_socket] = client_data

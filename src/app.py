@@ -8,7 +8,7 @@ import traceback
 from PyQt5.QtCore import QTimer, QThread, QObject, pyqtSignal
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QGroupBox,
-                             QMessageBox, QListView)
+                             QMessageBox, QListView, QDialog, QDialogButtonBox)
 
 from client import Client
 from message import MessageType
@@ -34,6 +34,34 @@ class ClientThread(QThread):
     def run(self):
         while True:
             self.client.poll(self.dispatch)
+
+
+class CreateRoomDialog(QDialog):
+    title = None
+
+    def __init__(self, parent):
+        super(CreateRoomDialog, self).__init__(parent)
+        self.construct_ui()
+
+    def construct_ui(self):
+        self.setWindowTitle("Create Room")
+
+        vbox = QVBoxLayout()
+
+        buttons = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+
+        button_box = QDialogButtonBox(buttons)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+
+        self.title = QLineEdit()
+        vbox.addWidget(self.title)
+        vbox.addWidget(button_box)
+
+        self.setLayout(vbox)
+
+    def title_text(self):
+        return self.title.text()
 
 
 class ChatWindow(QWidget):
@@ -63,7 +91,6 @@ class ChatWindow(QWidget):
         self.construct_ui()
 
     def on_discover_client(self, nickname):
-
         row = QStandardItem(nickname)
         self.users_model.appendRow(row)
         pass
@@ -102,6 +129,11 @@ class ChatWindow(QWidget):
         rooms_chat_btn = QPushButton("Join")
         rooms_vbox.addWidget(rooms_chat_btn)
 
+        # Create button for rooms
+        rooms_create_btn = QPushButton("Create")
+        rooms_create_btn.clicked.connect(self.show_create_room_dialog)
+        rooms_vbox.addWidget(rooms_create_btn)
+
         rooms_group.setLayout(rooms_vbox)
         hbox.addWidget(rooms_group)
 
@@ -110,6 +142,12 @@ class ChatWindow(QWidget):
         vbox.addWidget(btn)
 
         self.setLayout(vbox)
+
+    def show_create_room_dialog(self):
+        dlg = CreateRoomDialog(self)
+        dlg.setModal(True)
+        if dlg.exec():
+            print(f"Create room: {dlg.title_text()}")
 
 
 class ConnectionWindow(QWidget):
