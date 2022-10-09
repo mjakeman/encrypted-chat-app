@@ -7,7 +7,7 @@ from threading import Thread
 from traceback import print_exception
 
 from message import Message, NicknameMessage, ListClientsMessage, ClientDiscoveryMessage, MessageType, \
-    AcknowledgeClientMessage
+    AcknowledgeClientMessage, RoomDiscoveryMessage
 from socket_utils import recv_message, send_message
 
 import config
@@ -21,9 +21,25 @@ class ClientData:
         self.client_id = client_id
 
 
+class Room:
+    authorized_clients = None
+    title = None
+    host_id = None
+
+    def __init__(self, title, host_id):
+        self.title = title
+        self.host_id = host_id
+        self.authorized_clients = {host_id}
+
+    def invite(self, client_id):
+        self.authorized_clients.add(client_id)
+
+
 class Server:
     connected_clients = {}
     server_socket = None
+
+    server_rooms = []
 
     next_id = 0
 
@@ -55,13 +71,23 @@ class Server:
         return self.connected_clients[client_socket]
 
     def dispatch_message(self, client_socket, message):
+        client_data = self.get_client_data(client_socket)
+
         if message.message_type is MessageType.LIST_CLIENTS:
             for client in self.connected_clients:
-                client_data = self.get_client_data(client)
+                other_client_data = self.get_client_data(client)
 
-                new_msg = ClientDiscoveryMessage(client_data.client_nick)
+                new_msg = ClientDiscoveryMessage(other_client_data.client_nick)
                 send_message(client_socket, new_msg)
             return
+
+        if message.message_type is MessageType.LIST_ROOMS:
+            for room in self.server_rooms:
+                if client_data.client_id in room.authorized_clients:
+                    new_msg = RoomDiscoveryMessage(room.title)
+                    send_message(client_socket, new_msg)
+            return
+
 
         print(f"Unsupported message: {message.message_type.name}")
 

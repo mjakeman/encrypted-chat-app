@@ -26,7 +26,12 @@ class MessageType(IntEnum):
     NICKNAME = 1,
     ACKNOWLEDGE_CLIENT = 2,
     LIST_CLIENTS = 3,
-    CLIENT_DISCOVERY = 4
+    CLIENT_DISCOVERY = 4,
+    LIST_ROOMS = 5,
+    ROOM_DISCOVERY = 6,
+    ROOM_CREATE = 7,
+    ACKNOWLEDGE_ROOM_CREATE = 8,
+    ROOM_INVITE = 9,
 
 
 def build_message_header(length, msg_type):
@@ -63,11 +68,28 @@ def parse_message_contents(message_type, byte_data):
     if message_type == MessageType.NICKNAME:
         return NicknameMessage(byte_data.decode())
     elif message_type == MessageType.ACKNOWLEDGE_CLIENT:
-        return AcknowledgeClientMessage(byte_data.decode())
+        client_id = int(byte_data.decode())
+        return AcknowledgeClientMessage(client_id)
     elif message_type == MessageType.LIST_CLIENTS:
         return ListClientsMessage()
     elif message_type == MessageType.CLIENT_DISCOVERY:
-        return ClientDiscoveryMessage(byte_data.decode())
+        tokens = byte_data.decode().split(',')
+        client_id = int(tokens[0])
+        nickname = tokens[1]
+        return ClientDiscoveryMessage(client_id, nickname)
+    elif message_type == MessageType.LIST_ROOMS:
+        return ListRoomsMessage()
+    elif message_type == MessageType.ROOM_DISCOVERY:
+        room_id = int(byte_data.decode())
+        return RoomDiscoveryMessage(room_id)
+    elif message_type == MessageType.ROOM_CREATE:
+        tokens = byte_data.decode().split(',')
+        host_id = int(tokens[0])
+        title = tokens[1]
+        return RoomCreateMessage(host_id, title)
+    elif message_type == MessageType.ACKNOWLEDGE_ROOM_CREATE:
+        room_id = int(byte_data.decode())
+        return AcknowledgeRoomCreateMessage(room_id)
 
 
 def parse_message(byte_data):
@@ -100,10 +122,10 @@ class NicknameMessage(Message):
 class AcknowledgeClientMessage(Message):
     client_id = None
 
-    def __init__(self, contents):
+    def __init__(self, client_id):
         super(AcknowledgeClientMessage, self).__init__(MessageType.ACKNOWLEDGE_CLIENT)
 
-        self.client_id = int(contents)
+        self.client_id = client_id
 
     def __str__(self):
         return str(self.client_id)
@@ -119,10 +141,68 @@ class ListClientsMessage(Message):
 
 class ClientDiscoveryMessage(Message):
     nickname = None
+    client_id = None
 
-    def __init__(self, content):
+    def __init__(self, client_id, nickname):
         super(ClientDiscoveryMessage, self).__init__(MessageType.CLIENT_DISCOVERY)
-        self.nickname = content
+        self.client_id = client_id
+        self.nickname = nickname
 
     def __str__(self):
-        return self.nickname
+        return ','.join([str(self.client_id), str(self.nickname)])
+
+
+class ListRoomsMessage(Message):
+    def __init__(self):
+        super(ListRoomsMessage, self).__init__(MessageType.LIST_ROOMS)
+
+    def __str__(self):
+        return None
+
+
+class RoomDiscoveryMessage(Message):
+    room_id = None
+
+    def __init__(self, room_id):
+        super(RoomDiscoveryMessage, self).__init__(MessageType.ROOM_DISCOVERY)
+        self.room_id = room_id
+
+    def __str__(self):
+        return str(self.room_id)
+
+
+class RoomCreateMessage(Message):
+    host_id = None
+    title = None
+
+    def __init__(self, host_id, title):
+        super(RoomCreateMessage, self).__init__(MessageType.ROOM_CREATE)
+        self.host_id = host_id
+        self.title = title
+
+    def __str__(self):
+        return ','.join([str(self.host_id), str(self.title)])
+
+
+class AcknowledgeRoomCreateMessage(Message):
+    room_id = None
+
+    def __init__(self, room_id):
+        super(AcknowledgeRoomCreateMessage, self).__init__(MessageType.ACKNOWLEDGE_ROOM_CREATE)
+        self.room_id = room_id
+
+    def __str__(self):
+        return str(self.room_id)
+
+
+class RoomInviteMessage(Message):
+    room_id = None
+    client_id = None
+
+    def __init__(self, room_id, client_id):
+        super(RoomInviteMessage, self).__init__(MessageType.ROOM_INVITE)
+        self.room_id = room_id
+        self.client_id = client_id
+
+    def __str__(self):
+        return ','.join([str(self.room_id), str(self.client_id)])

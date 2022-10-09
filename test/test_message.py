@@ -23,6 +23,14 @@ class MessageTest(TestCase):
         self.assertEqual(message.message_type, cmp_message.message_type)
         self.assertEqual(message.nickname, cmp_message.nickname)
 
+    def test_ack_client_round_trip(self):
+        message = AcknowledgeClientMessage(147)
+        byte_data = message_to_wire(message)
+
+        cmp_message = parse_message(byte_data)
+        self.assertEqual(message.message_type, cmp_message.message_type)
+        self.assertEqual(message.client_id, cmp_message.client_id)
+
     def test_list_clients_round_trip(self):
         message = ListClientsMessage()
         byte_data = message_to_wire(message)
@@ -30,10 +38,43 @@ class MessageTest(TestCase):
         cmp_message = parse_message(byte_data)
         self.assertEqual(message.message_type, cmp_message.message_type)
 
-    def test_client_data_round_trip(self):
-        message = ClientDiscoveryMessage("Some data")
+    def test_client_discovery_round_trip(self):
+        message = ClientDiscoveryMessage(12, "Some data")
         byte_data = message_to_wire(message)
 
         cmp_message = parse_message(byte_data)
         self.assertEqual(message.message_type, cmp_message.message_type)
+        self.assertEqual(message.client_id, cmp_message.client_id)
         self.assertEqual(message.nickname, cmp_message.nickname)
+
+    def test_list_rooms_round_trip(self):
+        message = ListRoomsMessage()
+        byte_data = message_to_wire(message)
+
+        cmp_message = parse_message(byte_data)
+        self.assertEqual(message.message_type, cmp_message.message_type)
+
+    def test_room_discovery_round_trip(self):
+        message = RoomDiscoveryMessage(12)
+        byte_data = message_to_wire(message)
+
+        cmp_message = parse_message(byte_data)
+        self.assertEqual(message.message_type, cmp_message.message_type)
+        self.assertEqual(message.room_id, cmp_message.room_id)
+
+    def test_room_create_round_trip(self):
+        message = RoomCreateMessage(125, "My Room")
+        byte_data = message_to_wire(message)
+
+        cmp_message = parse_message(byte_data)
+        self.assertEqual(message.message_type, cmp_message.message_type)
+        self.assertEqual(message.host_id, cmp_message.host_id)
+        self.assertEqual(message.title, cmp_message.title)
+
+    def test_ack_room_create_round_trip(self):
+        message = AcknowledgeRoomCreateMessage(14)
+        byte_data = message_to_wire(message)
+
+        cmp_message = parse_message(byte_data)
+        self.assertEqual(message.message_type, cmp_message.message_type)
+        self.assertEqual(message.room_id, cmp_message.room_id)
