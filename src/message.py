@@ -1,21 +1,21 @@
 # Message Protocol
 # Name: Matthew Jakeman
 # UPI: mjak923
-
+import datetime
 from enum import IntEnum
 
-SEPERATOR_TOKEN = ':'
-MESSAGE_HEADER_SIZE = 4
+SEPERATOR_TOKEN = chr(0xFFFF)
+MESSAGE_HEADER_SIZE = 8
 
 
 # Message Protocol:
 #
 # This message system uses a custom 'on the wire' protocol:
-#  - Message Header (32 bits)
+#  - Message Header (64 bits)
 #  - Content (variable)
 #
-# The message header is 32-bits long and holds two fields:
-#  - length 24 bits
+# The message header is 64-bits long and holds two fields:
+#  - length 56 bits
 #  - type 8 bits
 #
 # The content encoding depends on the message and will have
@@ -34,11 +34,13 @@ class MessageType(IntEnum):
     ROOM_INVITE = 9,
     INITIATE_USER_CHAT = 10,
     ACKNOWLEDGE_USER_CHAT = 11,
+    ROOM_MESSAGE_SEND = 12,
+    ROOM_MESSAGE_BROADCAST = 13,
 
 
 def build_message_header(length, msg_type):
     header = (length << 8) | int(msg_type)
-    return header.to_bytes(4, byteorder='big')
+    return header.to_bytes(8, byteorder='big')
 
 
 def parse_message_header(header):
@@ -75,19 +77,19 @@ def parse_message_contents(message_type, byte_data):
     elif message_type == MessageType.LIST_CLIENTS:
         return ListClientsMessage()
     elif message_type == MessageType.CLIENT_DISCOVERY:
-        tokens = byte_data.decode().split(',')
+        tokens = byte_data.decode().split(SEPERATOR_TOKEN)
         client_id = int(tokens[0])
         nickname = tokens[1]
         return ClientDiscoveryMessage(client_id, nickname)
     elif message_type == MessageType.LIST_ROOMS:
         return ListRoomsMessage()
     elif message_type == MessageType.ROOM_DISCOVERY:
-        tokens = byte_data.decode().split(',')
+        tokens = byte_data.decode().split(SEPERATOR_TOKEN)
         room_id = int(tokens[0])
         title = tokens[1]
         return RoomDiscoveryMessage(room_id, title)
     elif message_type == MessageType.ROOM_CREATE:
-        tokens = byte_data.decode().split(',')
+        tokens = byte_data.decode().split(SEPERATOR_TOKEN)
         host_id = int(tokens[0])
         title = tokens[1]
         return RoomCreateMessage(host_id, title)
@@ -98,11 +100,24 @@ def parse_message_contents(message_type, byte_data):
         user_id = int(byte_data.decode())
         return InitiateUserChat(user_id)
     elif message_type == MessageType.ACKNOWLEDGE_USER_CHAT:
-        tokens = byte_data.decode().split(',')
+        tokens = byte_data.decode().split(SEPERATOR_TOKEN)
         room_id = int(tokens[0])
         user_id = int(tokens[1])
         user_nick = tokens[2]
         return AcknowledgeUserChat(room_id, user_id, user_nick)
+    elif message_type == MessageType.ROOM_MESSAGE_SEND:
+        tokens = byte_data.decode().split(SEPERATOR_TOKEN)
+        room_id = int(tokens[0])
+        text = tokens[1]
+        timestamp = datetime.datetime.fromisoformat(tokens[2])
+        return RoomMessageSend(room_id, text, timestamp)
+    elif message_type == MessageType.ROOM_MESSAGE_BROADCAST:
+        tokens = byte_data.decode().split(SEPERATOR_TOKEN)
+        room_id = int(tokens[0])
+        text = tokens[1]
+        timestamp = datetime.datetime.fromisoformat(tokens[2])
+        user_id = int (tokens[3])
+        return RoomMessageBroadcast(room_id, text, timestamp, user_id)
 
 
 def parse_message(byte_data):
@@ -162,7 +177,7 @@ class ClientDiscoveryMessage(Message):
         self.nickname = nickname
 
     def __str__(self):
-        return ','.join([str(self.client_id), str(self.nickname)])
+        return SEPERATOR_TOKEN.join([str(self.client_id), str(self.nickname)])
 
 
 class ListRoomsMessage(Message):
@@ -183,7 +198,7 @@ class RoomDiscoveryMessage(Message):
         self.title = room_title
 
     def __str__(self):
-        return ','.join([str(self.room_id), str(self.title)])
+        return SEPERATOR_TOKEN.join([str(self.room_id), str(self.title)])
 
 
 class RoomCreateMessage(Message):
@@ -196,7 +211,7 @@ class RoomCreateMessage(Message):
         self.title = title
 
     def __str__(self):
-        return ','.join([str(self.host_id), str(self.title)])
+        return SEPERATOR_TOKEN.join([str(self.host_id), str(self.title)])
 
 
 class AcknowledgeRoomCreateMessage(Message):
@@ -220,7 +235,7 @@ class RoomInviteMessage(Message):
         self.client_id = client_id
 
     def __str__(self):
-        return ','.join([str(self.room_id), str(self.client_id)])
+        return SEPERATOR_TOKEN.join([str(self.room_id), str(self.client_id)])
 
 
 class InitiateUserChat(Message):
@@ -246,4 +261,38 @@ class AcknowledgeUserChat(Message):
         self.user_nick = user_nick
 
     def __str__(self):
-        return ','.join([str(self.room_id), str(self.user_id), str(self.user_nick)])
+        return SEPERATOR_TOKEN.join([str(self.room_id), str(self.user_id), str(self.user_nick)])
+
+
+class RoomMessageSend(Message):
+    text = None
+    timestamp = None
+    room_id = None
+
+    def __init__(self, room_id, text, timestamp):
+        super(RoomMessageSend, self).__init__(MessageType.ROOM_MESSAGE_SEND)
+        self.room_id = room_id
+        self.text = text
+        self.timestamp = timestamp
+
+    def __str__(self):
+        return SEPERATOR_TOKEN.join([str(self.room_id), str(self.text), datetime.datetime.isoformat(self.timestamp)])
+
+
+class RoomMessageBroadcast(Message):
+    text = None
+    timestamp = None
+    user_id = None
+    room_id = None
+
+    def __init__(self, room_id, text, timestamp, user_id):
+        super(RoomMessageBroadcast, self).__init__(MessageType.ROOM_MESSAGE_BROADCAST)
+        self.text = text
+        self.timestamp = timestamp
+        self.user_id = user_id
+        self.room_id = room_id
+
+    def __str__(self):
+        return SEPERATOR_TOKEN.join([str(self.room_id), str(self.text),
+                                     datetime.datetime.isoformat(self.timestamp),
+                                     str(self.user_id)])

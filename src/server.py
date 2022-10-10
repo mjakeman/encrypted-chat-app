@@ -21,20 +21,39 @@ class ClientData:
         self.client_id = client_id
 
 
+class RoomMessage:
+    text = None
+    timestamp = None
+
+    def __init__(self, text, timestamp):
+        self.text = text
+        self.timestamp = timestamp
+
+
 class Room:
-    authorized_clients = None
+    authorized_clients = set()
     title = None
     host_id = None
     room_id = None
+
+    messages = []
 
     def __init__(self, room_id, title, host_id):
         self.room_id = room_id
         self.title = title
         self.host_id = host_id
-        self.authorized_clients = {host_id}
+
+        # Direct chats do not have a host (host_id = -1)
+        if host_id >= 0:
+            self.authorized_clients.add(host_id)
 
     def invite(self, client_id):
-        self.authorized_clients.add(client_id)
+        # Reject invalid client IDs
+        if client_id >= 0:
+            self.authorized_clients.add(client_id)
+
+    def send_message(self, room_message):
+        self.messages.append(room_message)
 
 
 class Server:
@@ -77,6 +96,13 @@ class Server:
         for client in self.connected_clients:
             if self.connected_clients[client].client_id is client_id:
                 return self.connected_clients[client]
+
+        return None
+
+    def get_client_socket_for_id(self, client_id):
+        for client in self.connected_clients:
+            if self.connected_clients[client].client_id is client_id:
+                return client
 
         return None
 
@@ -131,6 +157,10 @@ class Server:
                 new_room = self.create_room("Direct Chat", -1)
                 room_id = new_room.room_id
 
+                # Invite both users
+                new_room.invite(client_data.client_id)
+                new_room.invite(message.user_id)
+
                 # Set room in user room maps
                 client_data.user_room_map[message.user_id] = room_id
                 other_user_data.user_room_map[client_data.client_id] = room_id
@@ -139,6 +169,29 @@ class Server:
 
             new_msg = AcknowledgeUserChat(room_id, other_user_data.client_id, other_user_data.client_nick)
             send_message(client_socket, new_msg)
+            return
+
+        if message.message_type is MessageType.ROOM_MESSAGE_SEND:
+            text = message.text
+            timestamp = message.timestamp
+            room_id = message.room_id
+
+            room = self.server_rooms[room_id]
+            message = RoomMessage(text, timestamp)
+            room.send_message(message)
+
+            new_msg = RoomMessageBroadcast(room_id, text, timestamp, client_data.client_id)
+
+            # Try to get socket for host. Note that in direct chats
+            # there is no host, so this will be 'None'
+            host_socket = self.get_client_socket_for_id(room.host_id)
+            if host_socket is not None:
+                send_message(host_socket, new_msg)
+
+            for member_id in room.authorized_clients:
+                member_socket = self.get_client_socket_for_id(member_id)
+                send_message(member_socket, new_msg)
+
             return
 
         print(f"Unsupported message: {message.message_type.name}")

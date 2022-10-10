@@ -1,6 +1,7 @@
 # Qt GUI
 # Name: Matthew Jakeman
 # UPI: mjak923
+import datetime
 import queue
 import sys
 import traceback
@@ -12,7 +13,8 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QVBoxLayout, QLab
                              QScrollArea)
 
 from client import Client
-from message import MessageType, RoomCreateMessage, ListRoomsMessage, ListClientsMessage, InitiateUserChat
+from message import MessageType, RoomCreateMessage, ListRoomsMessage, ListClientsMessage, InitiateUserChat, \
+    RoomMessageSend
 
 
 class ClientThread(QThread):
@@ -23,6 +25,7 @@ class ClientThread(QThread):
     discovered_room = pyqtSignal(int, str)
     created_room = pyqtSignal(int)
     started_chat = pyqtSignal(int, int, str)
+    received_message = pyqtSignal(int, int, datetime.datetime, str)
 
     def __init__(self, client):
         super().__init__()
@@ -48,6 +51,11 @@ class ClientThread(QThread):
         if message.message_type is MessageType.ACKNOWLEDGE_USER_CHAT:
             print(f"Ack'd user chat: {message.room_id}")
             self.started_chat.emit(message.user_id, message.room_id, message.user_nick)
+            return
+
+        if message.message_type is MessageType.ROOM_MESSAGE_BROADCAST:
+            print(f"Room {message.room_id}, User {message.user_id}, Time {str(message.timestamp)}: {message.text}")
+            self.received_message.emit(message.room_id, message.user_id, message.timestamp, message.text)
             return
 
         print(f"Unsupported message: {message.message_type}")
@@ -121,6 +129,8 @@ class RoomView(QWidget):
         self.chat_window = parent
         self.should_show_participants = should_show_participants
 
+        self.client_thread.received_message.connect(self.on_message)
+
         self.construct_ui()
 
     def construct_ui(self):
@@ -140,6 +150,7 @@ class RoomView(QWidget):
         hbox.addWidget(self.message_entry)
 
         send_message_btn = QPushButton("Send")
+        send_message_btn.clicked.connect(self.send_text_message)
         hbox.addWidget(send_message_btn)
 
         send_image_btn = QPushButton("Attach")
@@ -160,6 +171,18 @@ class RoomView(QWidget):
             grid.addWidget(invite_btn, 2, 1)
 
         self.setLayout(grid)
+
+    def on_message(self, room_id, user_id, timestamp, text):
+        if room_id is not self.room_id:
+            return
+
+        label = QLabel(f"{user_id}: {text}\n{timestamp}")
+        self.chat_vbox.addWidget(label)
+
+    def send_text_message(self):
+        text = self.message_entry.text()
+        new_msg = RoomMessageSend(self.room_id, text, datetime.datetime.now())
+        self.client_thread.queue_message(new_msg)
 
 
 class MainView(QWidget):

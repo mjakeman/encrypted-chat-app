@@ -97,3 +97,24 @@ class MessageTest(TestCase):
         self.assertEqual(message.room_id, cmp_message.room_id)
         self.assertEqual(message.user_id, cmp_message.user_id)
         self.assertEqual(message.user_nick, cmp_message.user_nick)
+
+    def test_room_message_send_round_trip(self):
+        message = RoomMessageSend(14, "Name", datetime.datetime.now())
+        byte_data = message_to_wire(message)
+
+        cmp_message = parse_message(byte_data)
+        self.assertEqual(message.message_type, cmp_message.message_type)
+        self.assertEqual(message.room_id, cmp_message.room_id)
+        self.assertEqual(message.text, cmp_message.text)
+        self.assertEqual(message.timestamp, cmp_message.timestamp)
+
+    def test_room_message_broadcast_round_trip(self):
+        message = RoomMessageBroadcast(14, "Name", datetime.datetime.now(), 8)
+        byte_data = message_to_wire(message)
+
+        cmp_message = parse_message(byte_data)
+        self.assertEqual(message.message_type, cmp_message.message_type)
+        self.assertEqual(message.room_id, cmp_message.room_id)
+        self.assertEqual(message.text, cmp_message.text)
+        self.assertEqual(message.timestamp, cmp_message.timestamp)
+        self.assertEqual(message.user_id, cmp_message.user_id)
