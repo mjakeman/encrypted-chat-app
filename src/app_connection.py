@@ -77,11 +77,11 @@ class ConnectionWindow(QWidget):
             port = int(self.port_edit.text())
             nick = self.nick_edit.text()
 
-            self.chat_window = ChatWindow(addr, port, nick)
+            self.chat_window = ChatWindow(self, addr, port, nick)
             self.chat_window.show()
             self.setVisible(False)
         except Exception as e:
             traceback.print_exception(e)
             QMessageBox.information(self, "Could not connect to server",
-                                    "Ensure address, port, and nickname are valid",
+                                    e.__str__(),
                                     QMessageBox.Ok, QMessageBox.Ok)

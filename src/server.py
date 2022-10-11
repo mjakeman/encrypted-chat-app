@@ -298,7 +298,12 @@ class Server:
             client_socket.close()
             return
 
-        # TODO: Ensure nickname is unique
+        for cmp in self.connected_clients:
+            test_nick = self.connected_clients[cmp].client_nick
+            if nick_message.nickname == test_nick:
+                ack_message = AcknowledgeClientMessage(INVALID_ID)
+                send_message(client_socket, ack_message)
+                return
 
         # Create new client id
         client_data = ClientData(self.next_user_id)

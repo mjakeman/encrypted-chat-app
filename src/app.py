@@ -21,7 +21,8 @@ if __name__ == '__main__':
             port = int(sys.argv[2])
             nickname = sys.argv[3]
 
-            window = ChatWindow(address, port, nickname)
+            connect = ConnectionWindow()
+            window = ChatWindow(connect, address, port, nickname)
             window.show()
         except Exception as e:
             traceback.print_exception(e)

@@ -27,6 +27,9 @@ class Client:
         ack_message = recv_message(self.server_socket)
         self.client_id = ack_message.client_id
 
+        if self.client_id == INVALID_ID:
+            raise Exception("Nickname is already taken")
+
     def poll(self, dispatch_func):
 
         msg = None

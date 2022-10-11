@@ -1,7 +1,7 @@
 # Qt GUI (Main Window)
 # Name: Matthew Jakeman
 # UPI: mjak923
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QStackedWidget, QHBoxLayout, QPushButton
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QStackedWidget, QHBoxLayout, QPushButton, QApplication
 
 from app_state import AppState
 from app_thread import ClientThread
@@ -20,9 +20,13 @@ class ChatWindow(QWidget):
     quit_btn = None
 
     app_state = None
+    connect_window = None
 
-    def __init__(self, address, port, nickname):
+    def __init__(self, connect_window, address, port, nickname):
         super().__init__()
+
+        # Store a reference to the connection window
+        self.connect_window = connect_window
 
         # Setup Client
         client = Client(address, port, nickname)
@@ -73,10 +77,15 @@ class ChatWindow(QWidget):
         hbox.addWidget(self.back_btn)
 
         # Add Quit Button
-        self.quit_btn = QPushButton("Quit")
+        self.quit_btn = QPushButton("Logout")
+        self.quit_btn.clicked.connect(self.logout)
         hbox.addWidget(self.quit_btn)
 
         self.setLayout(vbox)
+
+    def logout(self):
+        self.connect_window.setVisible(True)
+        self.close()
 
     def construct_main_ui(self):
         return MainView(self, self.app_state)
