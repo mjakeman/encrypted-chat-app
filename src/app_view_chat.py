@@ -61,6 +61,7 @@ class RoomView(QWidget):
         self.chat_vbox = QVBoxLayout()
         self.chat_vbox.setAlignment(Qt.AlignTop)
         scroll_area = QScrollArea()
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         scroll_area.setWidgetResizable(True)
         inner = QFrame(scroll_area)
         inner.setLayout(self.chat_vbox)
@@ -98,9 +99,23 @@ class RoomView(QWidget):
 
         self.setLayout(grid)
 
+    def append_message(self, widget, is_current_user):
+        parent_hbox = QHBoxLayout()
+
+        if is_current_user:
+            parent_hbox.addStretch()
+            parent_hbox.addWidget(widget)
+        else:
+            parent_hbox.addWidget(widget)
+            parent_hbox.addStretch()
+
+        self.chat_vbox.addLayout(parent_hbox)
+
     def on_message(self, room_id, user_id, timestamp, text, resource_id):
         if room_id is not self.room_id:
             return
+
+        is_current_user = (user_id is self.app_state.client_id)
 
         if resource_id is not INVALID_ID:
             # Create image and setup scaling
@@ -108,7 +123,7 @@ class RoomView(QWidget):
             self.image.setFixedWidth(IMAGE_PREVIEW_WIDTH)
             self.image.setFixedHeight(IMAGE_PREVIEW_HEIGHT)
             self.image.setAlignment(Qt.AlignCenter)
-            self.chat_vbox.addWidget(self.image)
+            self.append_message(self.image, is_current_user)
 
             # Styling
             self.image.setStyleSheet("background-color: black; border-radius: 8px; border 1px solid black;")
@@ -117,8 +132,29 @@ class RoomView(QWidget):
             self.app_state.client_thread.queue_message(new_msg)
             self.transfer_progress = self.show_progress_dialog("Processing")
 
-        label = QLabel(f"{user_id}: {text}\n{timestamp}")
-        self.chat_vbox.addWidget(label)
+        frame = QFrame()
+        hbox = QHBoxLayout()
+        frame.setLayout(hbox)
+
+        label = QLabel()
+        label.setWordWrap(True)
+
+        if is_current_user:
+            label.setText(f"{text}")
+            frame.setStyleSheet("background-color: #1c71d8; color: white; border-radius: 20px;")
+        else:
+            nickname = self.app_state.get_known_client_name(user_id)
+            label.setText(f"{nickname}: {text}")
+            frame.setStyleSheet("background-color: #813d9c; color: white; border-radius: 20px;")
+
+        time = QLabel(timestamp.strftime("%H.%M"))
+        time.setStyleSheet("color: #deddda; font-size: 60%;")
+
+        hbox.addWidget(label)
+        hbox.addSpacing(10)
+        hbox.addWidget(time)
+
+        self.append_message(frame, is_current_user)
 
     def show_invite_dialog(self):
         dlg = InviteToRoomDialog(self.app_state)
@@ -170,7 +206,8 @@ class RoomView(QWidget):
         if self.upload_progress is not None:
             self.upload_progress.close()
 
-            new_msg = RoomEntrySendMessage(self.room_id, f"Sending image: {resource_id}", datetime.now(), resource_id)
+            nickname = self.app_state.get_known_client_name(self.app_state.client_id)
+            new_msg = RoomEntrySendMessage(self.room_id, f"{nickname} sent an image.", datetime.now(), resource_id)
             self.app_state.client_thread.queue_message(new_msg)
 
             self.upload_progress = None

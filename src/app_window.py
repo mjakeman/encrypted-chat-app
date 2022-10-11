@@ -37,6 +37,7 @@ class ChatWindow(QWidget):
 
         # Construct UI
         self.construct_ui()
+        self.setWindowTitle(f"{nickname}'s Conversations")
 
         # Send startup messages
         list_clients_message = ListClientsMessage()
