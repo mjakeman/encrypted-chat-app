@@ -28,7 +28,7 @@ class ClientData:
 class RoomMessage:
     text = None
     timestamp = None
-    resource_id = None
+    resource_id = INVALID_ID
 
     def __init__(self, text, timestamp):
         self.text = text
@@ -218,10 +218,15 @@ class Server:
             room_id = message.room_id
 
             room = self.server_rooms[room_id]
-            message = RoomMessage(text, timestamp)
-            room.send_message(message)
+            msg = RoomMessage(text, timestamp)
 
-            new_msg = RoomEntryBroadcastMessage(room_id, text, timestamp, client_data.client_id)
+            # Add resource if relevant
+            if message.resource_id is not INVALID_ID:
+                msg.add_resource(message.resource_id)
+
+            room.send_message(msg)
+
+            new_msg = RoomEntryBroadcastMessage(room_id, text, timestamp, client_data.client_id, message.resource_id)
 
             # Send a message to all authorised clients
             for member_id in room.authorized_clients:
@@ -234,6 +239,13 @@ class Server:
             resource_id = self.create_resource(message.data)
 
             new_msg = AcknowledgeResourceMessage(resource_id)
+            send_message(client_socket, new_msg)
+            return
+
+        if message.message_type == MessageType.RESOURCE_FETCH:
+            data = self.get_resource(message.resource_id)
+
+            new_msg = ResourceTransferMessage(data)
             send_message(client_socket, new_msg)
             return
 

@@ -121,14 +121,16 @@ def parse_message_contents(message_type, byte_data):
         room_id = int(tokens[0])
         text = tokens[1]
         timestamp = datetime.datetime.fromisoformat(tokens[2])
-        return RoomEntrySendMessage(room_id, text, timestamp)
+        resource_id = int(tokens[3])
+        return RoomEntrySendMessage(room_id, text, timestamp, resource_id)
     elif message_type == MessageType.ROOM_MESSAGE_BROADCAST:
         tokens = byte_data.decode().split(SEPERATOR_TOKEN)
         room_id = int(tokens[0])
         text = tokens[1]
         timestamp = datetime.datetime.fromisoformat(tokens[2])
         user_id = int(tokens[3])
-        return RoomEntryBroadcastMessage(room_id, text, timestamp, user_id)
+        resource_id = int(tokens[4])
+        return RoomEntryBroadcastMessage(room_id, text, timestamp, user_id, resource_id)
     elif message_type == MessageType.RESOURCE_CREATE:
         return ResourceCreateMessage(byte_data)
     elif message_type == MessageType.ACKNOWLEDGE_RESOURCE:
@@ -325,9 +327,9 @@ class RoomEntrySendMessage(Message):
     text = None
     timestamp = None
     room_id = None
-    resource_id = INVALID_ID
+    resource_id = None
 
-    def __init__(self, room_id, text, timestamp, resource_id=INVALID_ID):
+    def __init__(self, room_id, text, timestamp, resource_id):
         super(RoomEntrySendMessage, self).__init__(MessageType.ROOM_MESSAGE_SEND)
         self.room_id = room_id
         self.text = text
@@ -335,7 +337,9 @@ class RoomEntrySendMessage(Message):
         self.resource_id = resource_id
 
     def __str__(self):
-        return SEPERATOR_TOKEN.join([str(self.room_id), str(self.text), datetime.datetime.isoformat(self.timestamp)])
+        return SEPERATOR_TOKEN.join([str(self.room_id), str(self.text),
+                                     datetime.datetime.isoformat(self.timestamp),
+                                     str(self.resource_id)])
 
     def to_bytes(self):
         return self.__str__().encode()
@@ -346,18 +350,21 @@ class RoomEntryBroadcastMessage(Message):
     timestamp = None
     user_id = None
     room_id = None
+    resource_id = None
 
-    def __init__(self, room_id, text, timestamp, user_id):
+    def __init__(self, room_id, text, timestamp, user_id, resource_id):
         super(RoomEntryBroadcastMessage, self).__init__(MessageType.ROOM_MESSAGE_BROADCAST)
         self.text = text
         self.timestamp = timestamp
         self.user_id = user_id
         self.room_id = room_id
+        self.resource_id = resource_id
 
     def __str__(self):
         return SEPERATOR_TOKEN.join([str(self.room_id), str(self.text),
                                      datetime.datetime.isoformat(self.timestamp),
-                                     str(self.user_id)])
+                                     str(self.user_id),
+                                     str(self.resource_id)])
 
     def to_bytes(self):
         return self.__str__().encode()

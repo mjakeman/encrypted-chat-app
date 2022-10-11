@@ -99,7 +99,7 @@ class MessageTest(TestCase):
         self.assertEqual(message.user_nick, cmp_message.user_nick)
 
     def test_room_message_send_round_trip(self):
-        message = RoomEntrySendMessage(14, "Name", datetime.datetime.now())
+        message = RoomEntrySendMessage(14, "Name", datetime.datetime.now(), 6)
         byte_data = message_to_wire(message)
 
         cmp_message = parse_message(byte_data)
@@ -109,7 +109,7 @@ class MessageTest(TestCase):
         self.assertEqual(message.timestamp, cmp_message.timestamp)
 
     def test_room_message_broadcast_round_trip(self):
-        message = RoomEntryBroadcastMessage(14, "Name", datetime.datetime.now(), 8)
+        message = RoomEntryBroadcastMessage(14, "Name", datetime.datetime.now(), 8, 7)
         byte_data = message_to_wire(message)
 
         cmp_message = parse_message(byte_data)
