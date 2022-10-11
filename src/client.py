@@ -1,17 +1,18 @@
 # SE364 A2 Client
 # Name: Matthew Jakeman
 # UPI: mjak923
+
 import sys
 from socket import *
 
-import config
-from message import MessageType, NicknameMessage, ListClientsMessage, ClientDiscoveryMessage
+from config import INVALID_ID, SERVER_HOST, SERVER_PORT
+from message import MessageType, NicknameMessage
 from socket_utils import send_message, recv_message
 
 
 class Client:
     server_socket = None
-    client_id = -1
+    client_id = INVALID_ID
 
     def __init__(self, address, port, nickname):
         # Set up client socket connection
@@ -67,7 +68,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         nickname = sys.argv[1]
 
-    client = Client(config.SERVER_HOST, config.SERVER_PORT, nickname)
+    client = Client(SERVER_HOST, SERVER_PORT, nickname)
     try:
         while True:
             client.poll(default_dispatch)

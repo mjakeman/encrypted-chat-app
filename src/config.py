@@ -4,3 +4,5 @@
 
 SERVER_HOST = 'localhost'
 SERVER_PORT = 12000
+
+INVALID_ID = -1

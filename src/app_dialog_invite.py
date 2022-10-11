@@ -16,7 +16,7 @@ class InviteToRoomDialog(QDialog):
         self.construct_ui()
 
     def construct_ui(self):
-        self.setWindowTitle("Create Room")
+        self.setWindowTitle("Invite User")
 
         vbox = QVBoxLayout()
 

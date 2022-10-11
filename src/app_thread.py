@@ -21,6 +21,7 @@ class ClientThread(QThread):
     created_room = pyqtSignal(int)
     started_chat = pyqtSignal(int, int, str)
     received_message = pyqtSignal(int, int, datetime, str)
+    resource_ack = pyqtSignal(int)
 
     def __init__(self, client):
         super().__init__()
@@ -51,6 +52,11 @@ class ClientThread(QThread):
         if message.message_type is MessageType.ROOM_MESSAGE_BROADCAST:
             print(f"Room {message.room_id}, User {message.user_id}, Time {str(message.timestamp)}: {message.text}")
             self.received_message.emit(message.room_id, message.user_id, message.timestamp, message.text)
+            return
+
+        if message.message_type is MessageType.ACKNOWLEDGE_RESOURCE:
+            print(f"Resource created: {message.resource_id}")
+            self.resource_ack.emit(message.resource_id)
             return
 
         print(f"Unsupported message: {message.message_type}")

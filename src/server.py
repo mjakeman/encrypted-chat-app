@@ -10,10 +10,11 @@ from traceback import print_exception
 from message import *
 from socket_utils import recv_message, send_message
 
-import config
+from config import INVALID_ID, SERVER_PORT, SERVER_HOST
 
-DIRECT_CHAT_ROOM_ID = -1
+DIRECT_CHAT_ROOM_ID = INVALID_ID
 RESOURCE_LOCATION = "res"
+
 
 class ClientData:
     client_nick = None
@@ -27,10 +28,14 @@ class ClientData:
 class RoomMessage:
     text = None
     timestamp = None
+    resource_id = None
 
     def __init__(self, text, timestamp):
         self.text = text
         self.timestamp = timestamp
+
+    def add_resource(self, resource_id):
+        self.resource_id = resource_id
 
 
 class Room:
@@ -225,8 +230,11 @@ class Server:
 
             return
 
-        if message.message_type == MessageType.RESOURCE_TRANSFER:
-            self.create_resource(message.data)
+        if message.message_type == MessageType.RESOURCE_CREATE:
+            resource_id = self.create_resource(message.data)
+
+            new_msg = AcknowledgeResourceMessage(resource_id)
+            send_message(client_socket, new_msg)
             return
 
         print(f"Unsupported message: {message.message_type.name}")
@@ -298,5 +306,5 @@ class Server:
 
 if __name__ == '__main__':
     # Server properties
-    server = Server(config.SERVER_HOST, config.SERVER_PORT)
+    server = Server(SERVER_HOST, SERVER_PORT)
     server.run()

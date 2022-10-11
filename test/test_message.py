@@ -128,7 +128,35 @@ class MessageTest(TestCase):
         self.assertEqual(message.room_id, cmp_message.room_id)
         self.assertEqual(message.client_id, cmp_message.client_id)
 
-    def test_resource_transfer(self):
+    def test_resource_create_round_trip(self):
+        with open("test.png", "rb") as image:
+            file = image.read()
+            data = bytearray(file)
+
+            message = ResourceCreateMessage(data)
+            byte_data = message_to_wire(message)
+
+            cmp_message = parse_message(byte_data)
+            self.assertEqual(message.message_type, cmp_message.message_type)
+            self.assertEqual(message.data, cmp_message.data)
+
+    def test_resource_ack_round_trip(self):
+        message = AcknowledgeResourceMessage(14)
+        byte_data = message_to_wire(message)
+
+        cmp_message = parse_message(byte_data)
+        self.assertEqual(message.message_type, cmp_message.message_type)
+        self.assertEqual(message.resource_id, cmp_message.resource_id)
+
+    def test_resource_fetch_round_trip(self):
+        message = ResourceFetchMessage(14)
+        byte_data = message_to_wire(message)
+
+        cmp_message = parse_message(byte_data)
+        self.assertEqual(message.message_type, cmp_message.message_type)
+        self.assertEqual(message.resource_id, cmp_message.resource_id)
+
+    def test_resource_transfer_round_trip(self):
         with open("test.png", "rb") as image:
             file = image.read()
             data = bytearray(file)

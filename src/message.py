@@ -4,6 +4,8 @@
 import datetime
 from enum import IntEnum
 
+from config import INVALID_ID
+
 SEPERATOR_TOKEN = chr(0xFFFF)
 MESSAGE_HEADER_SIZE = 8
 
@@ -36,7 +38,10 @@ class MessageType(IntEnum):
     ACKNOWLEDGE_USER_CHAT = 11,
     ROOM_MESSAGE_SEND = 12,
     ROOM_MESSAGE_BROADCAST = 13,
-    RESOURCE_TRANSFER = 14,
+    RESOURCE_CREATE = 14,
+    ACKNOWLEDGE_RESOURCE = 15,
+    RESOURCE_FETCH = 16,
+    RESOURCE_TRANSFER = 17
 
 
 def build_message_header(length, msg_type):
@@ -48,7 +53,7 @@ def parse_message_header(header):
     integer_val = int.from_bytes(header, byteorder='big')
 
     length = (integer_val >> 8)
-    msg_type = integer_val & 0b1111
+    msg_type = integer_val & 0b11111111
     return length, MessageType(msg_type)
 
 
@@ -124,6 +129,14 @@ def parse_message_contents(message_type, byte_data):
         timestamp = datetime.datetime.fromisoformat(tokens[2])
         user_id = int(tokens[3])
         return RoomEntryBroadcastMessage(room_id, text, timestamp, user_id)
+    elif message_type == MessageType.RESOURCE_CREATE:
+        return ResourceCreateMessage(byte_data)
+    elif message_type == MessageType.ACKNOWLEDGE_RESOURCE:
+        resource_id = int(byte_data.decode())
+        return AcknowledgeResourceMessage(resource_id)
+    elif message_type == MessageType.RESOURCE_FETCH:
+        resource_id = int(byte_data.decode())
+        return ResourceFetchMessage(resource_id)
     elif message_type == MessageType.RESOURCE_TRANSFER:
         return ResourceTransferMessage(byte_data)
 
@@ -312,12 +325,14 @@ class RoomEntrySendMessage(Message):
     text = None
     timestamp = None
     room_id = None
+    resource_id = INVALID_ID
 
-    def __init__(self, room_id, text, timestamp):
+    def __init__(self, room_id, text, timestamp, resource_id=INVALID_ID):
         super(RoomEntrySendMessage, self).__init__(MessageType.ROOM_MESSAGE_SEND)
         self.room_id = room_id
         self.text = text
         self.timestamp = timestamp
+        self.resource_id = resource_id
 
     def __str__(self):
         return SEPERATOR_TOKEN.join([str(self.room_id), str(self.text), datetime.datetime.isoformat(self.timestamp)])
@@ -343,6 +358,45 @@ class RoomEntryBroadcastMessage(Message):
         return SEPERATOR_TOKEN.join([str(self.room_id), str(self.text),
                                      datetime.datetime.isoformat(self.timestamp),
                                      str(self.user_id)])
+
+    def to_bytes(self):
+        return self.__str__().encode()
+
+
+class ResourceCreateMessage(Message):
+    data = None
+
+    def __init__(self, data):
+        super(ResourceCreateMessage, self).__init__(MessageType.RESOURCE_CREATE)
+        self.data = data
+
+    def to_bytes(self):
+        return self.data
+
+
+class AcknowledgeResourceMessage(Message):
+    resource_id = None
+
+    def __init__(self, resource_id):
+        super(AcknowledgeResourceMessage, self).__init__(MessageType.ACKNOWLEDGE_RESOURCE)
+        self.resource_id = resource_id
+
+    def __str__(self):
+        return str(self.resource_id)
+
+    def to_bytes(self):
+        return self.__str__().encode()
+
+
+class ResourceFetchMessage(Message):
+    resource_id = None
+
+    def __init__(self, resource_id):
+        super(ResourceFetchMessage, self).__init__(MessageType.RESOURCE_FETCH)
+        self.resource_id = resource_id
+
+    def __str__(self):
+        return str(self.resource_id)
 
     def to_bytes(self):
         return self.__str__().encode()

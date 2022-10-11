@@ -5,10 +5,10 @@
 from datetime import datetime
 
 from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QVBoxLayout, QScrollArea, QHBoxLayout, QLineEdit, QPushButton, \
-    QListView, QFileDialog
+    QListView, QFileDialog, QProgressDialog
 
 from app_dialog_invite import InviteToRoomDialog
-from message import RoomEntrySendMessage, RoomInviteMessage, ResourceTransferMessage
+from message import RoomEntrySendMessage, RoomInviteMessage, ResourceCreateMessage
 
 
 class RoomView(QWidget):
@@ -23,6 +23,7 @@ class RoomView(QWidget):
     message_entry = None
 
     should_show_participants = None
+    progress = None
 
     def __init__(self, parent, app_state, room_id, title, should_show_participants=False):
         super(RoomView, self).__init__()
@@ -36,6 +37,7 @@ class RoomView(QWidget):
         self.should_show_participants = should_show_participants
 
         self.app_state.client_thread.received_message.connect(self.on_message)
+        self.app_state.client_thread.resource_ack.connect(self.on_resource_created)
 
         self.construct_ui()
 
@@ -102,11 +104,35 @@ class RoomView(QWidget):
         self.app_state.client_thread.queue_message(new_msg)
 
     def send_image_message(self):
+
+        if self.progress is not None:
+            return
+
         filename = QFileDialog.getOpenFileName(self, "Open image", "/", "Image files (*.png *.jpg)")
 
-        if filename:
-            with open(filename[0], "rb") as image:
-                f = image.read()
-                b = bytearray(f)
-                new_msg = ResourceTransferMessage(b)
-                self.app_state.client_thread.queue_message(new_msg)
+        if filename is None:
+            return
+
+        with open(filename[0], "rb") as image:
+            f = image.read()
+            b = bytearray(f)
+            new_msg = ResourceCreateMessage(b)
+            self.app_state.client_thread.queue_message(new_msg)
+
+        progress = QProgressDialog()
+        progress.setMinimum(0)
+        progress.setMaximum(0)
+        progress.show()
+        progress.setModal(True)
+        progress.setWindowTitle("Uploading")
+
+        self.progress = progress
+
+    def on_resource_created(self, resource_id):
+        if self.progress is not None:
+            self.progress.close()
+
+            new_msg = RoomEntrySendMessage(self.room_id, f"Sending image: {resource_id}", datetime.now())
+            self.app_state.client_thread.queue_message(new_msg)
+
+            self.progress = None

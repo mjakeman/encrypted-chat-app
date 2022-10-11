@@ -4,6 +4,8 @@
 
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 
+from config import INVALID_ID
+
 
 class AppState:
     clients = {}
@@ -13,7 +15,7 @@ class AppState:
     rooms_model = QStandardItemModel()
 
     client_thread = None
-    client_id = -1
+    client_id = INVALID_ID
 
     def __init__(self, client_thread, client_id):
         self.client_thread = client_thread
