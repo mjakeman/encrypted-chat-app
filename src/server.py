@@ -12,6 +12,8 @@ from socket_utils import recv_message, send_message
 import config
 
 
+DIRECT_CHAT_ROOM_ID = -1
+
 class ClientData:
     client_nick = None
     client_id = None
@@ -43,8 +45,8 @@ class Room:
         self.title = title
         self.host_id = host_id
 
-        # Direct chats do not have a host (host_id = -1)
-        if host_id >= 0:
+        # Direct chats do not have a host (host_id = DIRECT_CHAT_ROOM_ID)
+        if host_id != DIRECT_CHAT_ROOM_ID:
             self.authorized_clients.add(host_id)
 
     def invite(self, client_id):
@@ -127,6 +129,9 @@ class Server:
 
         if message.message_type is MessageType.LIST_ROOMS:
             for room in self.server_rooms:
+                if room.host_id is DIRECT_CHAT_ROOM_ID:
+                    continue
+
                 if client_data.client_id is room.host_id or client_data.client_id in room.authorized_clients:
                     new_msg = RoomDiscoveryMessage(room.room_id, room.title)
                     send_message(client_socket, new_msg)
@@ -154,7 +159,7 @@ class Server:
             other_user_data = self.get_client_data_for_id(message.user_id)
 
             if client_data.user_room_map.get(message.user_id) is None:
-                new_room = self.create_room("Direct Chat", -1)
+                new_room = self.create_room("Direct Chat", DIRECT_CHAT_ROOM_ID)
                 room_id = new_room.room_id
 
                 # Invite both users

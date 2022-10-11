@@ -10,7 +10,7 @@ from PyQt5.QtCore import QTimer, QThread, QObject, pyqtSignal
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QGroupBox,
                              QMessageBox, QListView, QDialog, QDialogButtonBox, QStackedWidget, QGridLayout,
-                             QScrollArea)
+                             QScrollArea, QListWidget, QListWidgetItem)
 
 from client import Client
 from message import MessageType, RoomCreateMessage, ListRoomsMessage, ListClientsMessage, InitiateUserChat, \
@@ -74,6 +74,26 @@ class ClientThread(QThread):
         self.queue.put(message)
 
 
+class InviteToRoomDialog(QDialog):
+    list = None
+    client_map = None
+
+    def __init__(self, client_map):
+        super(InviteToRoomDialog, self).__init__()
+
+        self.client_map = client_map
+        self.construct_ui()
+
+    def construct_ui(self):
+        self.list = QListWidget()
+
+        for client in self.client_map:
+            item = QListWidgetItem()
+            item.setText(client)
+            item.setData(0, self.client_map[client])
+            self.list.addItem()
+
+
 class CreateRoomDialog(QDialog):
     title = None
 
@@ -106,9 +126,7 @@ class RoomView(QWidget):
     room_id = None
     title = None
 
-    client_id = None
-    client_thread = None
-
+    app_state = None
     chat_window = None
 
     participants = None
@@ -117,19 +135,18 @@ class RoomView(QWidget):
 
     should_show_participants = None
 
-    def __init__(self, parent, client_id, client_thread, room_id, title, should_show_participants=False):
+    def __init__(self, parent, app_state, room_id, title, should_show_participants=False):
         super(RoomView, self).__init__()
 
         self.room_id = room_id
         self.title = title
 
-        self.client_id = client_id
-        self.client_thread = client_thread
-
+        self.app_state = app_state
         self.chat_window = parent
+
         self.should_show_participants = should_show_participants
 
-        self.client_thread.received_message.connect(self.on_message)
+        self.app_state.client_thread.received_message.connect(self.on_message)
 
         self.construct_ui()
 
@@ -182,61 +199,36 @@ class RoomView(QWidget):
     def send_text_message(self):
         text = self.message_entry.text()
         new_msg = RoomMessageSend(self.room_id, text, datetime.datetime.now())
-        self.client_thread.queue_message(new_msg)
+        self.app_state.client_thread.queue_message(new_msg)
 
 
 class MainView(QWidget):
-    client_thread = None
-    client_id = -1
-
-    users_model = None
-    users_list = None
-
-    rooms_model = None
-    rooms_list = None
-
+    app_state = None
     chat_window = None
 
-    def __init__(self, parent, client_id, client_thread):
+    users_list = None
+    rooms_list = None
+
+    def __init__(self, parent, app_state):
         super(MainView, self).__init__()
 
-        # Create Models
-        self.users_model = QStandardItemModel()
-        self.rooms_model = QStandardItemModel()
-
         self.chat_window = parent
-
-        self.client_id = client_id
-        self.client_thread = client_thread
+        self.app_state = app_state
 
         # Connect signals
-        self.client_thread.discovered_client.connect(self.on_discover_client)
-        self.client_thread.discovered_room.connect(self.on_discover_room)
-        self.client_thread.created_room.connect(self.on_create_room)
-        self.client_thread.started_chat.connect(self.on_start_chat)
+        self.app_state.client_thread.created_room.connect(self.on_create_room)
+        self.app_state.client_thread.started_chat.connect(self.on_start_chat)
 
         self.construct_ui()
-
-    def on_discover_client(self, user_id, nickname):
-        row = QStandardItem(nickname)
-        row.setData(user_id)
-        self.users_model.appendRow(row)
-        pass
-
-    def on_discover_room(self, room_id, room_title):
-        row = QStandardItem(room_title)
-        row.setData(room_id)
-        self.rooms_model.appendRow(row)
-        pass
 
     def on_start_chat(self, user_id, room_id, nickname):
         self.chat_window.show_direct_chat(user_id, room_id, nickname)
 
     def on_create_room(self, room_id):
-        # TODO: Open created room immediately
-        self.rooms_model.clear()
         new_msg = ListRoomsMessage()
-        self.client_thread.queue_message(new_msg)
+        self.app_state.client_thread.queue_message(new_msg)
+
+        self.chat_window.show_room(room_id)
 
     def construct_ui(self):
         vbox = QVBoxLayout()
@@ -249,7 +241,7 @@ class MainView(QWidget):
 
         # List of currently logged-in users
         self.users_list = QListView()
-        self.users_list.setModel(self.users_model)
+        self.users_list.setModel(self.app_state.clients_model)
         users_vbox.addWidget(self.users_list)
 
         # Chat button for users
@@ -266,7 +258,7 @@ class MainView(QWidget):
 
         # List of rooms
         self.rooms_list = QListView()
-        self.rooms_list.setModel(self.rooms_model)
+        self.rooms_list.setModel(self.app_state.rooms_model)
         rooms_vbox.addWidget(self.rooms_list)
 
         # Chat button for rooms
@@ -290,19 +282,19 @@ class MainView(QWidget):
 
         # On success
         if dlg.exec():
-            new_msg = RoomCreateMessage(self.client_id, dlg.title_text())
-            self.client_thread.queue_message(new_msg)
+            new_msg = RoomCreateMessage(self.app_state.client_id, dlg.title_text())
+            self.app_state.client_thread.queue_message(new_msg)
 
     def initiate_direct_chat(self):
         try:
             index = self.users_list.currentIndex()
-            item = self.users_model.itemFromIndex(index)
+            item = self.app_state.clients_model.itemFromIndex(index)
 
             user_id = item.data()
 
             if user_id is not None:
                 new_msg = InitiateUserChat(user_id)
-                self.client_thread.queue_message(new_msg)
+                self.app_state.client_thread.queue_message(new_msg)
         except:
             pass
 
@@ -317,9 +309,50 @@ class MainView(QWidget):
             pass
 
 
-class ChatWindow(QWidget):
+class AppState:
+    clients = {}
+    rooms = {}
+
+    clients_model = QStandardItemModel()
+    rooms_model = QStandardItemModel()
+
     client_thread = None
     client_id = -1
+
+    def __init__(self, client_thread, client_id):
+        self.client_thread = client_thread
+        self.client_id = client_id
+
+    def add_known_client(self, client_id, client_nick):
+        if self.clients.__contains__(client_id):
+            return
+
+        print(f"Adding client: {client_id}, {client_nick}")
+        item = QStandardItem(client_nick)
+        item.setData(client_id)
+        self.clients_model.appendRow(item)
+
+        self.clients[client_id] = client_nick
+
+    def add_known_room(self, room_id, room_title):
+        if self.rooms.__contains__(room_id):
+            return
+
+        print(f"Adding room: {room_id}, {room_title}")
+        item = QStandardItem(room_title)
+        item.setData(room_id)
+        self.rooms_model.appendRow(item)
+
+        self.rooms[room_id] = room_title
+
+    def get_known_client_name(self, client_id):
+        return self.clients[client_id]
+
+    def get_known_room_name(self, room_id):
+        return self.rooms[room_id]
+
+
+class ChatWindow(QWidget):
 
     main_view = None
     stack = None
@@ -327,21 +360,38 @@ class ChatWindow(QWidget):
     back_btn = None
     quit_btn = None
 
+    app_state = None
+
     def __init__(self, address, port, nickname):
         super().__init__()
 
         # Setup Client
         client = Client(address, port, nickname)
-        self.client_id = client.client_id
-        self.client_thread = ClientThread(client)
-        self.client_thread.start()
+        client_id = client.client_id
+        client_thread = ClientThread(client)
+        client_thread.start()
 
+        # Setup State
+        self.app_state = AppState(client_thread, client_id)
+        self.app_state.client_thread.discovered_client.connect(self.on_discover_client)
+        self.app_state.client_thread.discovered_room.connect(self.on_discover_room)
+
+        # Construct UI
         self.construct_ui()
 
+        # Send startup messages
         list_clients_message = ListClientsMessage()
         list_rooms_message = ListRoomsMessage()
-        self.client_thread.queue_message(list_clients_message)
-        self.client_thread.queue_message(list_rooms_message)
+        client_thread.queue_message(list_clients_message)
+        client_thread.queue_message(list_rooms_message)
+
+    def on_discover_client(self, user_id, nickname):
+        self.app_state.add_known_client(user_id, nickname)
+        pass
+
+    def on_discover_room(self, room_id, room_title):
+        self.app_state.add_known_room(room_id, room_title)
+        pass
 
     def construct_ui(self):
         vbox = QVBoxLayout()
@@ -369,13 +419,13 @@ class ChatWindow(QWidget):
         self.setLayout(vbox)
 
     def construct_main_ui(self):
-        return MainView(self, self.client_id, self.client_thread)
+        return MainView(self, self.app_state)
 
     def construct_room_ui(self, room_id, title):
-        return RoomView(self, self.client_id, self.client_thread, room_id, title, True)
+        return RoomView(self, self.app_state, room_id, title, True)
 
     def construct_direct_chat_ui(self, room_id, title):
-        return RoomView(self, self.client_id, self.client_thread, room_id, title, False)
+        return RoomView(self, self.app_state, room_id, title, False)
 
     def show_direct_chat(self, user_id, room_id, user_name):
         room_view = self.construct_direct_chat_ui(room_id, f"Chatting with {user_name}")
