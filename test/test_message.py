@@ -55,13 +55,15 @@ class MessageTest(TestCase):
         self.assertEqual(message.message_type, cmp_message.message_type)
 
     def test_room_discovery_round_trip(self):
-        message = RoomDiscoveryMessage(12, "Hello")
+        message = RoomDiscoveryMessage(12, "Hello", 4, "Bob")
         byte_data = message_to_wire(message)
 
         cmp_message = parse_message(byte_data)
         self.assertEqual(message.message_type, cmp_message.message_type)
         self.assertEqual(message.room_id, cmp_message.room_id)
         self.assertEqual(message.title, cmp_message.title)
+        self.assertEqual(message.host_id, cmp_message.host_id)
+        self.assertEqual(message.host_name, cmp_message.host_name)
 
     def test_room_create_round_trip(self):
         message = RoomCreateMessage(125, "My Room")

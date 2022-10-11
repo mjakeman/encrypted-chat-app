@@ -17,7 +17,7 @@ class ClientThread(QThread):
     queue = None
 
     discovered_client = pyqtSignal(int, str)
-    discovered_room = pyqtSignal(int, str)
+    discovered_room = pyqtSignal(int, str, int, str)
     created_room = pyqtSignal(int)
     started_chat = pyqtSignal(int, int, str)
     received_message = pyqtSignal(int, int, datetime, str, int)
@@ -37,7 +37,7 @@ class ClientThread(QThread):
 
         if message.message_type is MessageType.ROOM_DISCOVERY:
             print(f"Discovered room: {message.title}")
-            self.discovered_room.emit(message.room_id, message.title)
+            self.discovered_room.emit(message.room_id, message.title, message.host_id, message.host_name)
             return
 
         if message.message_type is MessageType.ACKNOWLEDGE_ROOM_CREATE:

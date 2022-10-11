@@ -93,7 +93,9 @@ def parse_message_contents(message_type, byte_data):
         tokens = byte_data.decode().split(SEPERATOR_TOKEN)
         room_id = int(tokens[0])
         title = tokens[1]
-        return RoomDiscoveryMessage(room_id, title)
+        host_id = int(tokens[2])
+        host_name = tokens[3]
+        return RoomDiscoveryMessage(room_id, title, host_id, host_name)
     elif message_type == MessageType.ROOM_CREATE:
         tokens = byte_data.decode().split(SEPERATOR_TOKEN)
         host_id = int(tokens[0])
@@ -232,14 +234,19 @@ class ListRoomsMessage(Message):
 class RoomDiscoveryMessage(Message):
     room_id = None
     title = None
+    host_id = None
+    host_name = None
 
-    def __init__(self, room_id, room_title):
+    def __init__(self, room_id, room_title, host_id, host_name):
         super(RoomDiscoveryMessage, self).__init__(MessageType.ROOM_DISCOVERY)
         self.room_id = room_id
         self.title = room_title
+        self.host_id = host_id
+        self.host_name = host_name
 
     def __str__(self):
-        return SEPERATOR_TOKEN.join([str(self.room_id), str(self.title)])
+        return SEPERATOR_TOKEN.join([str(self.room_id), str(self.title),
+                                     str(self.host_id), str(self.host_name)])
 
     def to_bytes(self):
         return self.__str__().encode()

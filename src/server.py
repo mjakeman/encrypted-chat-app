@@ -1,8 +1,10 @@
 # SE364 A2 Server
 # Name: Matthew Jakeman
 # UPI: mjak923
+
 import os
-import traceback
+import socket
+
 from socket import *
 from threading import Thread
 from traceback import print_exception
@@ -166,7 +168,8 @@ class Server:
                     continue
 
                 if client_data.client_id in room.authorized_clients:
-                    new_msg = RoomDiscoveryMessage(room.room_id, room.title)
+                    owner_name = self.get_client_data_for_id(room.host_id).client_nick
+                    new_msg = RoomDiscoveryMessage(room.room_id, room.title, room.host_id, owner_name)
                     send_message(client_socket, new_msg)
             return
 
@@ -184,12 +187,15 @@ class Server:
 
             for room in self.server_rooms:
                 if room.room_id is message.room_id:
-                    # TODO: Only host can invite people
-                    # Double check
+
+                    # Only host can invite people
+                    if room.host_id is not client_data.client_id:
+                        return
 
                     room.invite(message.client_id)
 
-                    new_msg = RoomDiscoveryMessage(room.room_id, room.title)
+                    owner_name = self.get_client_data_for_id(room.host_id).client_nick
+                    new_msg = RoomDiscoveryMessage(room.room_id, room.title, room.host_id, owner_name)
                     send_message(self.get_client_socket_for_id(message.client_id), new_msg)
             return
 

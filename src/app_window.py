@@ -49,8 +49,8 @@ class ChatWindow(QWidget):
         self.app_state.add_known_client(user_id, nickname)
         pass
 
-    def on_discover_room(self, room_id, room_title):
-        self.app_state.add_known_room(room_id, room_title)
+    def on_discover_room(self, room_id, room_title, host_id, host_name):
+        self.app_state.add_known_room(room_id, room_title, host_id, host_name)
         pass
 
     def construct_ui(self):
