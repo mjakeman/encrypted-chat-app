@@ -5,7 +5,7 @@ import datetime
 from enum import IntEnum
 
 SEPERATOR_TOKEN = chr(0xFFFF)
-MESSAGE_HEADER_SIZE = 8
+MESSAGE_HEADER_SIZE = 4
 
 
 # Message Protocol:
@@ -40,7 +40,7 @@ class MessageType(IntEnum):
 
 def build_message_header(length, msg_type):
     header = (length << 8) | int(msg_type)
-    return header.to_bytes(8, byteorder='big')
+    return header.to_bytes(4, byteorder='big')
 
 
 def parse_message_header(header):
@@ -96,6 +96,11 @@ def parse_message_contents(message_type, byte_data):
     elif message_type == MessageType.ACKNOWLEDGE_ROOM_CREATE:
         room_id = int(byte_data.decode())
         return AcknowledgeRoomCreateMessage(room_id)
+    elif message_type == MessageType.ROOM_INVITE:
+        tokens = byte_data.decode().split(SEPERATOR_TOKEN)
+        room_id = int(tokens[0])
+        client_id = int(tokens[1])
+        return RoomInviteMessage(room_id, client_id)
     elif message_type == MessageType.INITIATE_USER_CHAT:
         user_id = int(byte_data.decode())
         return InitiateUserChat(user_id)

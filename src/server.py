@@ -1,7 +1,7 @@
 # SE364 A2 Server
 # Name: Matthew Jakeman
 # UPI: mjak923
-
+import traceback
 from socket import *
 from threading import Thread
 from traceback import print_exception
@@ -132,7 +132,7 @@ class Server:
                 if room.host_id is DIRECT_CHAT_ROOM_ID:
                     continue
 
-                if client_data.client_id is room.host_id or client_data.client_id in room.authorized_clients:
+                if client_data.client_id in room.authorized_clients:
                     new_msg = RoomDiscoveryMessage(room.room_id, room.title)
                     send_message(client_socket, new_msg)
             return
@@ -148,11 +148,16 @@ class Server:
             return
 
         if message.message_type is MessageType.ROOM_INVITE:
+
+            # TODO: Only host can invite people
+            # Double check
+
             for room in self.server_rooms:
                 if room.room_id is message.room_id:
                     room.invite(message.client_id)
 
-                    # TODO: Notify
+                    new_msg = RoomDiscoveryMessage(room.room_id, room.title)
+                    send_message(self.get_client_socket_for_id(message.client_id), new_msg)
             return
 
         if message.message_type is MessageType.INITIATE_USER_CHAT:
@@ -187,12 +192,7 @@ class Server:
 
             new_msg = RoomMessageBroadcast(room_id, text, timestamp, client_data.client_id)
 
-            # Try to get socket for host. Note that in direct chats
-            # there is no host, so this will be 'None'
-            host_socket = self.get_client_socket_for_id(room.host_id)
-            if host_socket is not None:
-                send_message(host_socket, new_msg)
-
+            # Send a message to all authorised clients
             for member_id in room.authorized_clients:
                 member_socket = self.get_client_socket_for_id(member_id)
                 send_message(member_socket, new_msg)

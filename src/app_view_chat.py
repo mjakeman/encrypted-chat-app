@@ -7,7 +7,8 @@ from datetime import datetime
 from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QVBoxLayout, QScrollArea, QHBoxLayout, QLineEdit, QPushButton, \
     QListView
 
-from message import RoomMessageSend
+from app_dialog_invite import InviteToRoomDialog
+from message import RoomMessageSend, RoomInviteMessage
 
 
 class RoomView(QWidget):
@@ -73,6 +74,7 @@ class RoomView(QWidget):
 
             # (2,1) Invite Button
             invite_btn = QPushButton("Invite")
+            invite_btn.clicked.connect(self.show_invite_dialog)
             grid.addWidget(invite_btn, 2, 1)
 
         self.setLayout(grid)
@@ -83,6 +85,15 @@ class RoomView(QWidget):
 
         label = QLabel(f"{user_id}: {text}\n{timestamp}")
         self.chat_vbox.addWidget(label)
+
+    def show_invite_dialog(self):
+        dlg = InviteToRoomDialog(self.app_state)
+        dlg.setModal(True)
+
+        # On success
+        if dlg.exec():
+            new_msg = RoomInviteMessage(self.room_id, dlg.client_id())
+            self.app_state.client_thread.queue_message(new_msg)
 
     def send_text_message(self):
         text = self.message_entry.text()

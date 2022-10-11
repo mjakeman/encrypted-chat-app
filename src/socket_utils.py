@@ -1,11 +1,22 @@
 # Socket Utils
 # Name: Matthew Jakeman
 # UPI: mjak923
+import traceback
 
 from message import *
 
 
 def send_message(sender_socket, msg):
+    if msg is None:
+        print("WARN: Attempted to send null message")
+        traceback.print_stack()
+        return
+
+    if sender_socket is None:
+        print("WARN: Attempted to send message to invalid socket")
+        traceback.print_stack()
+        return
+
     byte_data = message_to_wire(msg)
     sender_socket.send(byte_data)
     print(f"DEBUG: Sent message of type {msg.message_type.name}")
@@ -15,7 +26,7 @@ def recv_message(listener_socket):
     header = listener_socket.recv(MESSAGE_HEADER_SIZE)
 
     if not header:
-        print("DEBUG: Peer disconnected")
+        print("WARN: Peer disconnected - things will probably crash")
         return None
 
     (length, msg_type) = parse_message_header(header)

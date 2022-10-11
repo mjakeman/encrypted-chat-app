@@ -3,6 +3,8 @@
 # UPI: mjak923
 
 import queue
+import sys
+import traceback
 from datetime import datetime
 
 from PyQt5.QtCore import QThread, pyqtSignal

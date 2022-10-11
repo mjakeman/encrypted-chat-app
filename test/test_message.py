@@ -118,3 +118,12 @@ class MessageTest(TestCase):
         self.assertEqual(message.text, cmp_message.text)
         self.assertEqual(message.timestamp, cmp_message.timestamp)
         self.assertEqual(message.user_id, cmp_message.user_id)
+
+    def test_room_invite_round_trip(self):
+        message = RoomInviteMessage(14, 20)
+        byte_data = message_to_wire(message)
+
+        cmp_message = parse_message(byte_data)
+        self.assertEqual(message.message_type, cmp_message.message_type)
+        self.assertEqual(message.room_id, cmp_message.room_id)
+        self.assertEqual(message.client_id, cmp_message.client_id)
