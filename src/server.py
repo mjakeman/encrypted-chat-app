@@ -1,6 +1,7 @@
 # SE364 A2 Server
 # Name: Matthew Jakeman
 # UPI: mjak923
+import os
 import traceback
 from socket import *
 from threading import Thread
@@ -11,8 +12,8 @@ from socket_utils import recv_message, send_message
 
 import config
 
-
 DIRECT_CHAT_ROOM_ID = -1
+RESOURCE_LOCATION = "res"
 
 class ClientData:
     client_nick = None
@@ -63,9 +64,11 @@ class Server:
     server_socket = None
 
     server_rooms = []
+    images = []
 
     next_user_id = 0
     next_room_id = 0
+    next_resource_id = 0
 
     def __init__(self, host, port):
         # Start up src and listen
@@ -85,6 +88,29 @@ class Server:
             print("Shutting down...")
         finally:
             self.server_socket.close()
+
+    def ensure_resource_dir(self):
+        if not os.path.exists(RESOURCE_LOCATION):
+            os.mkdir(RESOURCE_LOCATION)
+
+    def get_resource(self, resource_id):
+        self.ensure_resource_dir()
+        resource_name = os.path.join(RESOURCE_LOCATION, f"{resource_id}.png")
+
+        with open(resource_name, "rb") as image:
+            file = image.read()
+            return bytearray(file)
+
+    def create_resource(self, data):
+        resource_id = self.next_resource_id
+        self.next_resource_id += 1
+
+        self.ensure_resource_dir()
+        resource_name = os.path.join(RESOURCE_LOCATION, f"{resource_id}.png")
+
+        with open(resource_name, "wb") as image:
+            image.write(data)
+            return resource_id
 
     def broadcast(self, message):
         print(f"BROADCAST: {message.message_type.name}: {message.__str__()}")
@@ -149,11 +175,11 @@ class Server:
 
         if message.message_type is MessageType.ROOM_INVITE:
 
-            # TODO: Only host can invite people
-            # Double check
-
             for room in self.server_rooms:
                 if room.room_id is message.room_id:
+                    # TODO: Only host can invite people
+                    # Double check
+
                     room.invite(message.client_id)
 
                     new_msg = RoomDiscoveryMessage(room.room_id, room.title)
@@ -177,7 +203,7 @@ class Server:
             else:
                 room_id = client_data.user_room_map[message.user_id]
 
-            new_msg = AcknowledgeUserChat(room_id, other_user_data.client_id, other_user_data.client_nick)
+            new_msg = AcknowledgeUserChatMessage(room_id, other_user_data.client_id, other_user_data.client_nick)
             send_message(client_socket, new_msg)
             return
 
@@ -190,13 +216,17 @@ class Server:
             message = RoomMessage(text, timestamp)
             room.send_message(message)
 
-            new_msg = RoomMessageBroadcast(room_id, text, timestamp, client_data.client_id)
+            new_msg = RoomEntryBroadcastMessage(room_id, text, timestamp, client_data.client_id)
 
             # Send a message to all authorised clients
             for member_id in room.authorized_clients:
                 member_socket = self.get_client_socket_for_id(member_id)
                 send_message(member_socket, new_msg)
 
+            return
+
+        if message.message_type == MessageType.RESOURCE_TRANSFER:
+            self.create_resource(message.data)
             return
 
         print(f"Unsupported message: {message.message_type.name}")

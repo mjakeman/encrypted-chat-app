@@ -5,10 +5,10 @@
 from datetime import datetime
 
 from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QVBoxLayout, QScrollArea, QHBoxLayout, QLineEdit, QPushButton, \
-    QListView
+    QListView, QFileDialog
 
 from app_dialog_invite import InviteToRoomDialog
-from message import RoomMessageSend, RoomInviteMessage
+from message import RoomEntrySendMessage, RoomInviteMessage, ResourceTransferMessage
 
 
 class RoomView(QWidget):
@@ -60,6 +60,7 @@ class RoomView(QWidget):
         hbox.addWidget(send_message_btn)
 
         send_image_btn = QPushButton("Attach")
+        send_image_btn.clicked.connect(self.send_image_message)
         hbox.addWidget(send_image_btn)
 
         grid.addLayout(hbox, 2, 0)
@@ -97,5 +98,15 @@ class RoomView(QWidget):
 
     def send_text_message(self):
         text = self.message_entry.text()
-        new_msg = RoomMessageSend(self.room_id, text, datetime.now())
+        new_msg = RoomEntrySendMessage(self.room_id, text, datetime.now())
         self.app_state.client_thread.queue_message(new_msg)
+
+    def send_image_message(self):
+        filename = QFileDialog.getOpenFileName(self, "Open image", "/", "Image files (*.png *.jpg)")
+
+        if filename:
+            with open(filename[0], "rb") as image:
+                f = image.read()
+                b = bytearray(f)
+                new_msg = ResourceTransferMessage(b)
+                self.app_state.client_thread.queue_message(new_msg)

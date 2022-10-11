@@ -5,6 +5,8 @@ import traceback
 
 from message import *
 
+MAX_SOCKET_TRANSFER = 1024
+
 
 def send_message(sender_socket, msg):
     if msg is None:
@@ -18,7 +20,7 @@ def send_message(sender_socket, msg):
         return
 
     byte_data = message_to_wire(msg)
-    sender_socket.send(byte_data)
+    sender_socket.sendall(byte_data)
     print(f"DEBUG: Sent message of type {msg.message_type.name}")
 
 
@@ -33,7 +35,23 @@ def recv_message(listener_socket):
     print(f"DEBUG: Received message of type {msg_type.name}")
 
     if length > 0:
-        contents = listener_socket.recv(length)
+        # Create empty contents
+        contents = bytearray()
+
+        # Do not exceed max socket transfer size
+        while length > MAX_SOCKET_TRANSFER:
+            # Receive bytes and add to array
+            add = listener_socket.recv(MAX_SOCKET_TRANSFER)
+            contents += bytearray(add)
+
+            # Decrease length by socket size
+            length -= MAX_SOCKET_TRANSFER
+
+        # Append the remaining amount
+        add = listener_socket.recv(length)
+        contents += bytearray(add)
+
+        # Parse contents
         return parse_message_contents(msg_type, contents)
     else:
         return parse_message_contents(msg_type, None)

@@ -5,7 +5,7 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QListView, QPushButton
 
 from app_dialog_create_room import CreateRoomDialog
-from message import RoomCreateMessage, InitiateUserChat, ListRoomsMessage
+from message import RoomCreateMessage, InitiateUserChatMessage, ListRoomsMessage
 
 
 class MainView(QWidget):
@@ -99,7 +99,7 @@ class MainView(QWidget):
             user_id = item.data()
 
             if user_id is not None:
-                new_msg = InitiateUserChat(user_id)
+                new_msg = InitiateUserChatMessage(user_id)
                 self.app_state.client_thread.queue_message(new_msg)
         except:
             pass

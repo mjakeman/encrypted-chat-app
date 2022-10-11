@@ -81,7 +81,7 @@ class MessageTest(TestCase):
         self.assertEqual(message.room_id, cmp_message.room_id)
 
     def test_initiate_user_chat_round_trip(self):
-        message = InitiateUserChat(14)
+        message = InitiateUserChatMessage(14)
         byte_data = message_to_wire(message)
 
         cmp_message = parse_message(byte_data)
@@ -89,7 +89,7 @@ class MessageTest(TestCase):
         self.assertEqual(message.user_id, cmp_message.user_id)
 
     def test_ack_user_chat_round_trip(self):
-        message = AcknowledgeUserChat(14, 26, "Name")
+        message = AcknowledgeUserChatMessage(14, 26, "Name")
         byte_data = message_to_wire(message)
 
         cmp_message = parse_message(byte_data)
@@ -99,7 +99,7 @@ class MessageTest(TestCase):
         self.assertEqual(message.user_nick, cmp_message.user_nick)
 
     def test_room_message_send_round_trip(self):
-        message = RoomMessageSend(14, "Name", datetime.datetime.now())
+        message = RoomEntrySendMessage(14, "Name", datetime.datetime.now())
         byte_data = message_to_wire(message)
 
         cmp_message = parse_message(byte_data)
@@ -109,7 +109,7 @@ class MessageTest(TestCase):
         self.assertEqual(message.timestamp, cmp_message.timestamp)
 
     def test_room_message_broadcast_round_trip(self):
-        message = RoomMessageBroadcast(14, "Name", datetime.datetime.now(), 8)
+        message = RoomEntryBroadcastMessage(14, "Name", datetime.datetime.now(), 8)
         byte_data = message_to_wire(message)
 
         cmp_message = parse_message(byte_data)
@@ -127,3 +127,15 @@ class MessageTest(TestCase):
         self.assertEqual(message.message_type, cmp_message.message_type)
         self.assertEqual(message.room_id, cmp_message.room_id)
         self.assertEqual(message.client_id, cmp_message.client_id)
+
+    def test_resource_transfer(self):
+        with open("test.png", "rb") as image:
+            file = image.read()
+            data = bytearray(file)
+
+            message = ResourceTransferMessage(data)
+            byte_data = message_to_wire(message)
+
+            cmp_message = parse_message(byte_data)
+            self.assertEqual(message.message_type, cmp_message.message_type)
+            self.assertEqual(message.data, cmp_message.data)

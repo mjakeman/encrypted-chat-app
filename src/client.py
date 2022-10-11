@@ -26,15 +26,24 @@ class Client:
         ack_message = recv_message(self.server_socket)
         self.client_id = ack_message.client_id
 
+    def poll(self, dispatch_func):
+
+        msg = None
+
         # Make socket non-blocking
         self.server_socket.setblocking(False)
 
-    def poll(self, dispatch_func):
+        # Attempt to receive message
         try:
             msg = recv_message(self.server_socket)
-            dispatch_func(self.server_socket, msg)
         except BlockingIOError:
             pass
+
+        # Make socket blocking
+        self.server_socket.setblocking(True)
+
+        if msg is not None:
+            dispatch_func(self.server_socket, msg)
 
     def send_message(self, message):
         send_message(self.server_socket, message)
