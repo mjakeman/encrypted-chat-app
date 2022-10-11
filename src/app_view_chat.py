@@ -4,8 +4,8 @@
 
 from datetime import datetime
 
-from PyQt5.QtCore import QByteArray, Qt
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtCore import QByteArray, Qt, QRectF
+from PyQt5.QtGui import QPixmap, QPainter, QPainterPath
 from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QVBoxLayout, QScrollArea, QHBoxLayout, QLineEdit, QPushButton, \
     QListView, QFileDialog, QProgressDialog, QFrame
 
@@ -54,6 +54,8 @@ class RoomView(QWidget):
         # (0,0) Label
         grid = QGridLayout()
         grid.addWidget(QLabel(self.title), 0, 0)
+        grid.setColumnStretch(0, 3)
+        grid.setColumnStretch(1, 1)
 
         # (1,0) Chat Messages
         # Special invocation to make vbox scrollable
@@ -206,8 +208,7 @@ class RoomView(QWidget):
         if self.upload_progress is not None:
             self.upload_progress.close()
 
-            nickname = self.app_state.get_known_client_name(self.app_state.client_id)
-            new_msg = RoomEntrySendMessage(self.room_id, f"{nickname} sent an image.", datetime.now(), resource_id)
+            new_msg = RoomEntrySendMessage(self.room_id, "Sent an image.", datetime.now(), resource_id)
             self.app_state.client_thread.queue_message(new_msg)
 
             self.upload_progress = None
@@ -218,7 +219,9 @@ class RoomView(QWidget):
 
             pixmap = QPixmap()
             pixmap.loadFromData(QByteArray(resource_data))
-            self.image.setPixmap(pixmap.scaled(IMAGE_PREVIEW_WIDTH, IMAGE_PREVIEW_WIDTH, Qt.KeepAspectRatio))
+            pixmap = pixmap.scaled(IMAGE_PREVIEW_WIDTH, IMAGE_PREVIEW_WIDTH, Qt.KeepAspectRatio)
+
+            self.image.setPixmap(pixmap)
 
             self.image = None
             self.transfer_progress = None

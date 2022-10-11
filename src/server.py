@@ -39,7 +39,7 @@ class RoomMessage:
 
 
 class Room:
-    authorized_clients = set()
+    authorized_clients = None
     title = None
     host_id = None
     room_id = None
@@ -50,6 +50,8 @@ class Room:
         self.room_id = room_id
         self.title = title
         self.host_id = host_id
+
+        self.authorized_clients = set()
 
         # Direct chats do not have a host (host_id = DIRECT_CHAT_ROOM_ID)
         if host_id != DIRECT_CHAT_ROOM_ID:

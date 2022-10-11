@@ -95,7 +95,7 @@ class ChatWindow(QWidget):
         self.back_btn.setEnabled(True)
 
     def show_room(self, room_id):
-        room_view = self.construct_room_ui(room_id, "todo")
+        room_view = self.construct_room_ui(room_id, self.app_state.get_known_room_name(room_id))
         self.stack.addWidget(room_view)
         self.stack.setCurrentWidget(room_view)
 

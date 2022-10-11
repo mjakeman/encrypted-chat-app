@@ -34,8 +34,6 @@ class MainView(QWidget):
         new_msg = ListRoomsMessage()
         self.app_state.client_thread.queue_message(new_msg)
 
-        self.chat_window.show_room(room_id)
-
     def construct_ui(self):
         vbox = QVBoxLayout()
         hbox = QHBoxLayout()

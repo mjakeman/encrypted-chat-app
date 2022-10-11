@@ -30,6 +30,9 @@ class AppState:
         item.setData(client_id)
         self.clients_model.appendRow(item)
 
+        if client_id == self.client_id:
+            item.setText(client_nick + " (me)")
+
         self.clients[client_id] = client_nick
 
     def add_known_room(self, room_id, room_title):
