@@ -9,12 +9,27 @@ from PyQt5.QtGui import QPixmap, QPainter, QPainterPath
 from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QVBoxLayout, QScrollArea, QHBoxLayout, QLineEdit, QPushButton, \
     QListView, QFileDialog, QProgressDialog, QFrame
 
+from app_dialog_image import ImagePreviewDialog
 from app_dialog_invite import InviteToRoomDialog
 from config import INVALID_ID
 from message import RoomEntrySendMessage, RoomInviteMessage, ResourceCreateMessage, ResourceFetchMessage
 
 IMAGE_PREVIEW_HEIGHT = 200
 IMAGE_PREVIEW_WIDTH = 300
+
+
+class ImageLabel(QLabel):
+    data = None
+    viewer = None
+
+    def set_click_handler(self, data):
+        self.data = data
+        self.mousePressEvent = self.open_image
+
+    def open_image(self, event):
+        self.viewer = ImagePreviewDialog(self.data)
+        self.viewer.setModal(True)
+        self.viewer.show()
 
 
 class RoomView(QWidget):
@@ -121,7 +136,7 @@ class RoomView(QWidget):
 
         if resource_id is not INVALID_ID:
             # Create image and setup scaling
-            self.image = QLabel()
+            self.image = ImageLabel()
             self.image.setFixedWidth(IMAGE_PREVIEW_WIDTH)
             self.image.setFixedHeight(IMAGE_PREVIEW_HEIGHT)
             self.image.setAlignment(Qt.AlignCenter)
@@ -222,6 +237,7 @@ class RoomView(QWidget):
             pixmap = pixmap.scaled(IMAGE_PREVIEW_WIDTH, IMAGE_PREVIEW_WIDTH, Qt.KeepAspectRatio)
 
             self.image.setPixmap(pixmap)
+            self.image.set_click_handler(resource_data)
 
             self.image = None
             self.transfer_progress = None
