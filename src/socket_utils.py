@@ -21,7 +21,12 @@ def send_message(sender_socket, msg):
 
     byte_data = message_to_wire(msg)
     sender_socket.sendall(byte_data)
-    print(f"DEBUG: Sent message of type {msg.message_type.name}")
+
+    extra_length = len(byte_data) - MESSAGE_HEADER_SIZE
+    if extra_length > 0:
+        print(f"DEBUG: Sent message of type {msg.message_type.name} (length: {extra_length})")
+    else:
+        print(f"DEBUG: Sent message of type {msg.message_type.name}")
 
 
 def recv_message(listener_socket):
@@ -39,17 +44,25 @@ def recv_message(listener_socket):
         contents = bytearray()
 
         # Do not exceed max socket transfer size
-        while length > MAX_SOCKET_TRANSFER:
+        bytes_remaining = length
+        while bytes_remaining > MAX_SOCKET_TRANSFER:
             # Receive bytes and add to array
             add = listener_socket.recv(MAX_SOCKET_TRANSFER)
             contents += bytearray(add)
 
-            # Decrease length by socket size
-            length -= MAX_SOCKET_TRANSFER
+            # Decrease length by amount transferred
+            bytes_remaining -= len(add)
 
         # Append the remaining amount
-        add = listener_socket.recv(length)
+        add = listener_socket.recv(bytes_remaining)
         contents += bytearray(add)
+
+        # Ensure message transferred in full
+        if len(contents) != length:
+            print("ERROR: Message was corrupted")
+            print(f"Expected length: {length}")
+            print(f"Actual length: {len(contents)}")
+            return None
 
         # Parse contents
         return parse_message_contents(msg_type, contents)

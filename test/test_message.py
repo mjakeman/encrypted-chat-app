@@ -14,6 +14,15 @@ class MessageTest(TestCase):
         self.assertEqual(l, 4080)
         self.assertEqual(t, 3)
 
+    def test_big_header_round_trip(self):
+        big_number = pow(2, 55)
+
+        header = build_message_header(big_number, 3)
+        (l, t) = parse_message_header(header)
+
+        self.assertEqual(l, big_number)
+        self.assertEqual(t, 3)
+
     def test_nickname_round_trip(self):
         message = NicknameMessage("Matthew")
         byte_data = message_to_wire(message)
