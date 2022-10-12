@@ -16,6 +16,8 @@ class ClientThread(QThread):
     client = None
     queue = None
 
+    running = None
+
     discovered_client = pyqtSignal(int, str)
     discovered_room = pyqtSignal(int, str, int, str)
     created_room = pyqtSignal(int)
@@ -28,6 +30,7 @@ class ClientThread(QThread):
         super().__init__()
         self.client = client
         self.queue = queue.Queue()
+        self.running = True
 
     def dispatch(self, server_socket, message):
         if message.message_type is MessageType.CLIENT_DISCOVERY:
@@ -70,7 +73,7 @@ class ClientThread(QThread):
         print(f"Unsupported message: {message.message_type}")
 
     def run(self):
-        while True:
+        while self.running:
             # Poll for incoming messages
             self.client.poll(self.dispatch)
 
@@ -79,5 +82,11 @@ class ClientThread(QThread):
                 message = self.queue.get()
                 self.client.send_message(message)
 
+        # Loop terminated, so quit
+        self.client.__del__()
+
     def queue_message(self, message):
         self.queue.put(message)
+
+    def stop(self):
+        self.running = False

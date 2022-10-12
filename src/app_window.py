@@ -85,6 +85,7 @@ class ChatWindow(QWidget):
 
     def logout(self):
         self.connect_window.setVisible(True)
+        self.app_state.client_thread.stop()
         self.close()
 
     def construct_main_ui(self):
