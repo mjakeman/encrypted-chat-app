@@ -169,3 +169,21 @@ class MessageTest(TestCase):
             cmp_message = parse_message(byte_data)
             self.assertEqual(message.message_type, cmp_message.message_type)
             self.assertEqual(message.data, cmp_message.data)
+
+    def test_room_membership_discovery_round_trip(self):
+        members = [0, 1, 2, 3, 4]
+
+        message = RoomMembershipDiscoveryMessage(0, members)
+        byte_data = message_to_wire(message)
+
+        cmp_message = parse_message(byte_data)
+        self.assertEqual(message.message_type, cmp_message.message_type)
+        self.assertEqual(message.members, cmp_message.members)
+
+    def test_list_room_members_round_trip(self):
+        message = ListRoomMembersMessage(4)
+        byte_data = message_to_wire(message)
+
+        cmp_message = parse_message(byte_data)
+        self.assertEqual(message.message_type, cmp_message.message_type)
+        self.assertEqual(message.room_id, cmp_message.room_id)

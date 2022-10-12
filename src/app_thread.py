@@ -25,6 +25,7 @@ class ClientThread(QThread):
     received_message = pyqtSignal(int, int, datetime, str, int)
     resource_ack = pyqtSignal(int)
     resource_transfer = pyqtSignal(bytearray)
+    room_membership = pyqtSignal(int, object)
 
     def __init__(self, client):
         super().__init__()
@@ -68,6 +69,10 @@ class ClientThread(QThread):
 
         if message.message_type is MessageType.RESOURCE_TRANSFER:
             self.resource_transfer.emit(message.data)
+            return
+
+        if message.message_type is MessageType.ROOM_MEMBERSHIP_DISCOVERY:
+            self.room_membership.emit(message.host_id, message.members)
             return
 
         print(f"Unsupported message: {message.message_type}")

@@ -5,14 +5,15 @@
 from datetime import datetime
 
 from PyQt5.QtCore import QByteArray, Qt, QRectF
-from PyQt5.QtGui import QPixmap, QPainter, QPainterPath
+from PyQt5.QtGui import QPixmap, QPainter, QPainterPath, QStandardItemModel, QStandardItem, QColor
 from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QVBoxLayout, QScrollArea, QHBoxLayout, QLineEdit, QPushButton, \
     QListView, QFileDialog, QProgressDialog, QFrame
 
 from app_dialog_image import ImagePreviewDialog
 from app_dialog_invite import InviteToRoomDialog
 from config import INVALID_ID
-from message import RoomEntrySendMessage, RoomInviteMessage, ResourceCreateMessage, ResourceFetchMessage
+from message import RoomEntrySendMessage, RoomInviteMessage, ResourceCreateMessage, ResourceFetchMessage, \
+    ListRoomMembersMessage
 
 IMAGE_PREVIEW_HEIGHT = 200
 IMAGE_PREVIEW_WIDTH = 300
@@ -43,6 +44,8 @@ class RoomView(QWidget):
     chat_vbox = None
     message_entry = None
 
+    participants_model = None
+
     should_show_participants = None
     upload_progress = None
     transfer_progress = None
@@ -62,6 +65,14 @@ class RoomView(QWidget):
         self.app_state.client_thread.received_message.connect(self.on_message)
         self.app_state.client_thread.resource_ack.connect(self.on_resource_created)
         self.app_state.client_thread.resource_transfer.connect(self.on_resource_transferred)
+
+        if self.should_show_participants:
+            self.app_state.client_thread.room_membership.connect(self.on_room_membership)
+
+            new_msg = ListRoomMembersMessage(self.room_id)
+            self.app_state.client_thread.queue_message(new_msg)
+
+            self.participants_model = QStandardItemModel()
 
         self.construct_ui()
 
@@ -107,6 +118,7 @@ class RoomView(QWidget):
 
             # (1,1) Room Members
             self.participants = QListView()
+            self.participants.setModel(self.participants_model)
             grid.addWidget(self.participants, 1, 1)
 
             # (2,1) Invite Button
@@ -241,3 +253,20 @@ class RoomView(QWidget):
 
             self.image = None
             self.transfer_progress = None
+
+    def on_room_membership(self, host_id, member_arr):
+        self.participants_model.clear()
+        for client_id in member_arr:
+            nickname = self.app_state.get_known_client_name(client_id)
+
+            if client_id is host_id:
+                nickname += " (host)"
+
+            item = QStandardItem(nickname)
+
+            if client_id is self.app_state.client_id:
+                color = QColor()
+                color.setNamedColor("blue")
+                item.setForeground(color)
+
+            self.participants_model.appendRow(item)

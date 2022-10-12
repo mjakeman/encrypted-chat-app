@@ -41,7 +41,9 @@ class MessageType(IntEnum):
     RESOURCE_CREATE = 14,
     ACKNOWLEDGE_RESOURCE = 15,
     RESOURCE_FETCH = 16,
-    RESOURCE_TRANSFER = 17
+    RESOURCE_TRANSFER = 17,
+    ROOM_MEMBERSHIP_DISCOVERY = 18,
+    LIST_ROOM_MEMBERS = 19
 
 
 def build_message_header(length, msg_type):
@@ -143,6 +145,15 @@ def parse_message_contents(message_type, byte_data):
         return ResourceFetchMessage(resource_id)
     elif message_type == MessageType.RESOURCE_TRANSFER:
         return ResourceTransferMessage(byte_data)
+    elif message_type == MessageType.ROOM_MEMBERSHIP_DISCOVERY:
+        members = byte_data.decode().split(SEPERATOR_TOKEN)
+        members = [int(client_id) for client_id in members]
+        host_id = members[0]
+        members = members[1:]
+        return RoomMembershipDiscoveryMessage(host_id, members)
+    elif message_type == MessageType.LIST_ROOM_MEMBERS:
+        room_id = int(byte_data.decode())
+        return ListRoomMembersMessage(room_id)
 
 
 def parse_message(byte_data):
@@ -425,3 +436,35 @@ class ResourceTransferMessage(Message):
 
     def to_bytes(self):
         return self.data
+
+
+class RoomMembershipDiscoveryMessage(Message):
+    host_id = None
+    members = None
+
+    def __init__(self, host_id, members):
+        super(RoomMembershipDiscoveryMessage, self).__init__(MessageType.ROOM_MEMBERSHIP_DISCOVERY)
+        self.host_id = host_id
+        self.members = members
+
+    def __str__(self):
+        items = [str(member) for member in self.members]
+        items.insert(0, str(self.host_id))
+        return SEPERATOR_TOKEN.join(items)
+
+    def to_bytes(self):
+        return self.__str__().encode()
+
+
+class ListRoomMembersMessage(Message):
+    room_id = None
+
+    def __init__(self, room_id):
+        super(ListRoomMembersMessage, self).__init__(MessageType.LIST_ROOM_MEMBERS)
+        self.room_id = room_id
+
+    def __str__(self):
+        return str(self.room_id)
+
+    def to_bytes(self):
+        return self.__str__().encode()

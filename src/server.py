@@ -173,6 +173,12 @@ class Server:
                     send_message(client_socket, new_msg)
             return
 
+        if message.message_type is MessageType.LIST_ROOM_MEMBERS:
+            room = self.server_rooms[message.room_id]
+
+            new_msg = RoomMembershipDiscoveryMessage(room.host_id, room.authorized_clients)
+            send_message(client_socket, new_msg)
+
         if message.message_type is MessageType.ROOM_CREATE:
             if message.host_id is not client_data.client_id:
                 print("Not authorised to create room")
@@ -197,6 +203,11 @@ class Server:
                     owner_name = self.get_client_data_for_id(room.host_id).client_nick
                     new_msg = RoomDiscoveryMessage(room.room_id, room.title, room.host_id, owner_name)
                     send_message(self.get_client_socket_for_id(message.client_id), new_msg)
+
+                    for client_id in room.authorized_clients:
+                        dest_socket = self.get_client_socket_for_id(client_id)
+                        new_msg = RoomMembershipDiscoveryMessage(room.host_id, room.authorized_clients)
+                        send_message(dest_socket, new_msg)
             return
 
         if message.message_type is MessageType.INITIATE_USER_CHAT:
