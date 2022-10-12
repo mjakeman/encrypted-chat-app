@@ -2,8 +2,7 @@
 # Name: Matthew Jakeman
 # UPI: mjak923
 
-from config import INVALID_ID
-from server import DIRECT_CHAT_ROOM_ID
+from config import INVALID_ID, DIRECT_CHAT_ROOM_ID
 
 
 class RoomMessage:

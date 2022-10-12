@@ -4,6 +4,8 @@
 
 import os
 import socket
+import ssl
+import traceback
 
 from socket import *
 from threading import Thread
@@ -14,10 +16,7 @@ from server_client import ClientData
 from server_room import RoomMessage, Room
 from socket_utils import recv_message, send_message
 
-from config import INVALID_ID, SERVER_PORT, SERVER_HOST
-
-DIRECT_CHAT_ROOM_ID = INVALID_ID
-RESOURCE_LOCATION = "res"
+from config import INVALID_ID, SERVER_PORT, SERVER_HOST, DIRECT_CHAT_ROOM_ID, RESOURCE_LOCATION, CERTFILE, KEYFILE
 
 
 class Server:
@@ -32,8 +31,19 @@ class Server:
     next_resource_id = 0
 
     def __init__(self, host, port):
+        # Create SSL Context
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+
+        # Setup certificate and shared ciphers
+        context.load_cert_chain(certfile=CERTFILE, keyfile=KEYFILE)
+        context.load_verify_locations(CERTFILE)
+
+        # Wrap regular socket
+        raw_socket = socket(AF_INET, SOCK_STREAM)
+        raw_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        self.server_socket = context.wrap_socket(raw_socket, server_side=True)
+
         # Start up src and listen
-        self.server_socket = socket(AF_INET, SOCK_STREAM)
         self.server_socket.bind((host, port))
         self.server_socket.listen()
 
@@ -42,9 +52,12 @@ class Server:
     def run(self):
         try:
             while True:
-                # Wait for connection
-                incoming_client, _ = self.server_socket.accept()
-                self.register_client(incoming_client)
+                try:
+                    # Wait for connection
+                    incoming_client, _ = self.server_socket.accept()
+                    self.register_client(incoming_client)
+                except Exception as e:
+                    traceback.print_exception(e)
         except KeyboardInterrupt:
             print("Shutting down...")
         finally:
