@@ -1,6 +1,19 @@
+# Encrypted Chat Application
+An encrypted chat application created for SOFTENG 364 - Networks and Security
+at the University of Auckland.
+
+The application is built using Python Sockets and PyQt5.
+
+![Screenshot](screenshot.png)
+
 ## Running
-**IMPORTANT:** In order for the SSL certificates to be detected, both
-the server and client must be run from the root directory.
+The application must be run from the root directory.
+
+By default it uses:
+ - Address: `localhost`
+ - Port: `12000`
+
+There are two parts, the server (`server.py`) and the (`app.py`).
 
 ```bash
 # Run Server
@@ -9,6 +22,13 @@ python3 src/server.py
 # Run Client (GUI)
 python3 src/app.py
 ```
+
+**IMPORTANT:** In order for the SSL certificates to be detected, both
+the server and client must be run from the root directory.
+
+Additionally, a virtual environment is included (`venv`) but note that it
+expects PyQt to be provided by the system's site-packages. It can be run with
+`source .\venv\bin\activate`.
 
 ## How to generate certificate
 The certificate (named `cert.pem`) is generated as follows. Please

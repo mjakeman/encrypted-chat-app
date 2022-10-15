@@ -19,7 +19,7 @@ class Client:
 
     def __init__(self, address, port, nickname):
         # Create SSL Context
-        context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         context.load_verify_locations(CERTFILE)
         context.check_hostname = True
 
@@ -72,14 +72,4 @@ def default_dispatch(server_socket, message):
 
 
 if __name__ == '__main__':
-    nickname = 'Default'
-
-    if len(sys.argv) > 1:
-        nickname = sys.argv[1]
-
-    client = Client(SERVER_HOST, SERVER_PORT, nickname)
-    try:
-        while True:
-            client.poll(default_dispatch)
-    finally:
-        client.__del__()
+    print("Did you mean to run app.py?")

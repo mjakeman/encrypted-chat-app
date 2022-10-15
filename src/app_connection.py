@@ -28,7 +28,7 @@ class ConnectionWindow(QWidget):
 
         # IP Address
         self.addr_edit = QLineEdit()
-        self.addr_edit.setPlaceholderText("e.g. 127.0.0.1")
+        self.addr_edit.setPlaceholderText("e.g. localhost")
         addr_label = QLabel("Server Address:")
         addr_label.setBuddy(self.addr_edit)
 
